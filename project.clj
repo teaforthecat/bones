@@ -8,5 +8,7 @@
                  [org.danielsz/system "0.2.0"]
                  [yada "1.0.0-20150903.093751-9"]
                  [aleph "0.4.1-beta3"]
-                 [ring-mock "0.1.5"]]
+                 [org.onyxplatform/onyx-kafka "0.8.0.2"]
+                 [ring-mock "0.1.5"]
+                 ]
   :profiles {:dev {:source-paths ["src"]}})
