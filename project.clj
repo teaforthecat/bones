@@ -9,6 +9,7 @@
                  [yada "1.0.0-20150903.093751-9"]
                  [aleph "0.4.1-beta3"]
                  [org.onyxplatform/onyx-kafka "0.8.0.2"]
+                 [com.cognitect/transit-clj "0.8.285"]
                  [ring-mock "0.1.5"]
                  ]
   :profiles {:dev {:source-paths ["src"]}})
