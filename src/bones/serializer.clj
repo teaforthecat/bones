@@ -1,23 +1,34 @@
 (ns bones.serializer
-  (:require [cognitect.transit :as transit])
+  (:require [cognitect.transit :as transit]
+            ;[bones.core :as sys]
+            )
   (:import [java.io ByteArrayInputStream ByteArrayOutputStream]))
 
-(def data-format :msgpack)
+
+(defn data-format []
+  :msgpack
+     ;; ]->/bones/core->/bones/serializer->/bones/kafka->/bones/http->[
+  #_(get-in sys/system [:conf :serializer :format])
+  )
+
+;; transit serialization
+(defn transit-encoder [data-format]
+  (fn [data]
+    (.toByteArray
+     (let [buf (ByteArrayOutputStream. 4096)
+           writer (transit/writer buf data-format)]
+       (transit/write writer data)
+       buf))))
+
+(defn transit-decoder [data-format]
+  (fn [buffer]
+    (transit/read (transit/reader (ByteArrayInputStream. buffer) data-format))))
+
+(comment
+  ((transit-decoder :json)
+   ((transit-encoder :json) "hello"))
+)
 
 
-(defn encoder [{:keys [buffer data-format]}]
-  (let [buff (or buffer (ByteArrayOutputStream. 4096))
-        frmt (or data-format :msgpack)]
-    (fn [data]
-      (transit/write (transit/writer buff frmt) data)
-      (.toByteArray buff))))
-
-(defn decoder [{:keys [buffer data-format]}]
-  (let [buff (or buffer (ByteArrayOutputStream. 4096))
-        frmt (or data-format :msgpack)]
-    (fn [data]
-      (transit/read (transit/reader buff frmt)))))
-
-
-(def serialize   (encoder {:data-format data-format }))
-(def deserialize (decoder {:data-format data-format }))
+(def serialize   (transit-encoder (data-format)))
+(def deserialize (transit-decoder (data-format)))
