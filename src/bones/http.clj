@@ -1,38 +1,70 @@
 (ns bones.http
   (:require [bones.kafka :as kafka]
-            [ring.util.http-response :refer [ok service-unavailable]]
-            [compojure.api.sweet :refer [defapi api context* GET* POST* swagger-docs swagger-ui]]
+            [ring.util.http-response :refer [ok service-unavailable header]]
+            [compojure.api.sweet :refer [defapi api context* GET* POST* ANY* swagger-docs swagger-ui]]
+
             [schema.core :as s]))
 
 (s/defschema Command
   {:messag s/Str})
 
+(s/defschema Query
+  {:query {s/Keyword s/Str}})
+
 (s/defschema Success
   {:mess s/Str})
+
+(s/defschema QueryResult
+  {:results s/Any})
 
 (s/defschema KafkaResponse
   {:topic s/Str
    :partition s/Int
-   :offset s/Int})
+   :offset s/Int
+   (s/optional-key :key) s/Str
+   (s/optional-key :value) s/Any
+   (s/optional-key :message) s/Any})
 
 (defn command-handler [command]
   (ok {:mess (str "success-" (:messag command))}))
 
 
-(defn send-input-command [command]
-  (let [kafka-response @(kafka/send "input" command)]
-    (if (:topic kafka-response)
-      (ok kafka-response)
-      (service-unavailable "response has not been received"))))
+(defn send-input-command [command & sync]
+  (let [kafka-response @(kafka/produce "input" command)]
+    (if (:topic kafka-response) ; not sure how to check for kafka errors here
+      (if sync
+        ;; is this blocking?
+        (-> (kafka/consume "input")
+            (assoc :message command)
+            (ok)
+            (header :x-sync true))
+        (ok (assoc kafka-response :message command)))
+      (service-unavailable "command has not been received"))))
 
-(defapi app
-  {:formats [:json :edn]}
-  (swagger-docs)
-  (swagger-ui)
-  (context* "/api" []
-            (POST* "/command/:id" []
-                   :path-params [id :- s/Int]
-                   :body [command Command {:description "this input will be serialized in kafka and stored forever"}]
-                   :return KafkaResponse ;Success
-                   (send-input-command command)
-                   )))
+(defn query-handler [query]
+  (ok {:results "HI!"}))
+
+(def app
+  (api
+   {:formats [:json :edn]}
+   (swagger-docs)
+   (swagger-ui)
+   (context* "/api" []
+             (POST* "/command" []
+                    :body-params [command :- Command]
+                    :header-params [{x-sync false}]
+                    ;; :return KafkaResponse
+                    (send-input-command command x-sync))
+             (GET* "/query" []
+                   :query-params [query :- s/Any]
+                   :return QueryResult
+                   (query-handler query)))
+   ;; todo inject this route into development only somehow
+   (ANY* "/echo" {:as req}
+         (ok (assoc req :body (byte-streams/convert (:body req) String))))))
+
+#_(-> (app {:uri "/api/query"
+            :request-method :get
+            :query-params {:query {:x "y"}}})
+      (:body)
+      (byte-streams/convert String)) ;;=> "{\"results\":\"HI!\"}"
