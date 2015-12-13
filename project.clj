@@ -11,6 +11,7 @@
                  [org.onyxplatform/onyx-kafka "0.8.0.2"]
                  [com.cognitect/transit-clj "0.8.285"]
                  [ring-mock "0.1.5"]
+                 [peridot "0.4.2"]
                  [prismatic/schema "1.0.3"]
                  ]
   :plugins [[lein-expectations "0.0.8"]]

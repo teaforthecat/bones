@@ -2,7 +2,6 @@
   (:require [bones.system :as system]))
 
 
-(def system (system/system {:env :test :port 3000}))
 #_(def system (system/system {:env :test :port 3000}))
 
 #_(.stop (:server system))
