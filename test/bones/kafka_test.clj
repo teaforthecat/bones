@@ -16,4 +16,7 @@
     (let [send-response @(kafka/produce "input" "simple-string" )
           consume-response (kafka/consume "input")]
       (is (= "simple-string" (:value consume-response)))
-      )))
+      consume-response))
+  (testing "timeout"
+    (let [consume-response (kafka/consume "not-a-topic")]
+      (is (= "no messages" (:value consume-response))))))

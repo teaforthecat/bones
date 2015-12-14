@@ -19,10 +19,14 @@
 
 
 (defn consume [topic]
+  ;; imperative consumer, next make a streaming consumer
   ;; consumer must be at position 0 in bindings
-  ;; if we crash, group.id must change or reboot service (?)
-  (with-resource [c (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
-                                   "group.id" "bones.kafka1"
-                                   "auto.offset.reset" "smallest"})]
-    zkc/shutdown
-    (update (first (zkc/messages c topic)) :value deserialize)))
+  (try
+    (with-resource [c (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
+                                     "group.id" "bones.kafka3"
+                                     "auto.offset.reset" "smallest"
+                                     "consumer.timeout.ms" "1000"})]
+      zkc/shutdown
+      (update (first (zkc/messages c topic)) :value deserialize))
+    (catch kafka.consumer.ConsumerTimeoutException e
+        {:value "no messages"})))

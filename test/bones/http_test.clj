@@ -67,7 +67,11 @@
                         :headers
                         :x-sync))))))
 
-
+(deftest test-not-found
+  (let [response (-> (p/session http/app)
+                     (p/request "/nothing"))]
+    (is (= 404 (:status (:response response))))
+    (is (= "not found" (:body (:response response))))))
 
 (deftest test-send-input-command
   (testing "response generator"
