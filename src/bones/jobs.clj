@@ -35,26 +35,34 @@
    {:lifecycle/task output-task
     :lifecycle/calls :onyx.plugin.kafka/write-messages-calls}])
 
+(defn sym-to-topic [job-sym]
+  (-> (str job-sym)
+      (clojure.string/replace "/" "..") ;; / is illegal in kafka topic name
+      (subs 1))) ;; remove leading colon
+
+(defn topic-to-sym [topic-name]
+  (-> topic-name
+      (clojure.string/replace ".." "/") ;; / is illegal in kafka topic name
+      (keyword)))
+
 (defn topic-name-input [job-sym]
-  (subs (str job-sym "-input") 1))
+  (str (sym-to-topic job-sym) "-input"))
 
 (defn topic-name-output [job-sym]
-  (subs (str job-sym "-output") 1))
+  (str (sym-to-topic job-sym) "-output"))
 
 (defn build-catalog-for-job [conf job-sym]
-  (let [read-topic-name (subs (str job-sym "-input") 1)
-        write-topic-name (subs (str job-sym "-output") 1)]
-    [(topic-reader (topic-name-input job-sym) conf)
-     (topic-function job-sym conf)
-     (topic-writer (topic-name-output job-sym) conf)]))
+  [(topic-reader (topic-name-input job-sym) conf)
+   (topic-function job-sym conf)
+   (topic-writer (topic-name-output job-sym) conf)])
 
 (defn build-workflow-entry [conf job-sym]
   "routes segments through a function.
    given a symbol x, create two vectors as: [[x-input x] [x x-output]]"
-  (let [read-topic-name (subs (str job-sym "-input") 1)
-        write-topic-name (subs (str job-sym "-output") 1)
-        first-flow (mapv keyword [(topic-name-input job-sym) job-sym])
-        second-flow (mapv keyword [job-sym (topic-name-output job-sym)])]
+  (let [input (topic-name-input job-sym)
+        output (topic-name-output job-sym)
+        first-flow (mapv keyword [input job-sym])
+        second-flow (mapv keyword [job-sym output])]
     [first-flow
      second-flow]))
 
@@ -66,7 +74,7 @@
   {:workflow (build-workflow-entry conf job-sym)
    :catalog (build-catalog-for-job conf job-sym)
    :lifecycles (build-lifecycle-entries conf job-sym)
-   :task-scheduler :onyx.task-scheduler/balanced})
+   :task-scheduler :onyx.task-scheduler/greedy})
 
 (defn build-jobs [conf jobs]
   (mapv (partial build-job conf) jobs))
@@ -95,9 +103,14 @@
      :onyx.messaging/impl :aeron
      :onyx.peer/job-scheduler :onyx.job-scheduler/balanced
      :zookeeper.server/port 2181
+     :onyx.messaging/peer-port 40201
      :onyx.messaging/bind-addr "localhost" } )
 
-;;                         :task-scheduler :onyx.task-scheduler/balanced
+
+
+  ;;                         :task-scheduler :onyx.task-scheduler/balanced
+  (onyx.api/start-peer-group background-onyx-config)
+
   (submit-jobs background-onyx-config
                (build-jobs background-onyx-config background-jobs))
   ;; end user-space example.

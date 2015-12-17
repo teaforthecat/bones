@@ -7,6 +7,8 @@
 #_(.stop (:server system))
 #_(.start (:server system))
 #_(.restart (:server system))
+#_(:onyx-peer-group system)
+#_(:onyx-peers system)
 #_(alter-var-root #'system com.stuartsierra.component/start)
 #_(alter-var-root #'system com.stuartsierra.component/stop)
 

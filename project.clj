@@ -8,7 +8,7 @@
                  [org.danielsz/system "0.2.0"]
                  [aleph "0.4.1-beta3"]
                  [metosin/compojure-api "0.24.2"]
-                 [org.onyxplatform/onyx-kafka "0.8.0.2"]
+                 [org.onyxplatform/onyx-kafka "0.8.2.2"]
                  [com.cognitect/transit-clj "0.8.285"]
                  [ring-mock "0.1.5"]
                  [peridot "0.4.2"]
