@@ -32,6 +32,14 @@
     (catch kafka.consumer.ConsumerTimeoutException e
         {:value "no messages"})))
 
+(defn open-consumer [group-id topic]
+  (let [cnsmr (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
+                              "group.id" group-id
+                             "auto.offset.reset" "smallest"})]
+    [cnsmr (zkc/messages cnsmr topic)]))
+
+(defn shutdown [consumer]
+  (zkc/shutdown consumer))
 
 (defn personal-consumer [chan shutdown-ch group-id topic]
   (let [cnsmr (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
