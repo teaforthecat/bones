@@ -42,13 +42,13 @@
         output-topic (jobs/topic-name-output (:topic command))
         kafka-response @(kafka/produce input-topic (:message command))]
     (if (:topic kafka-response) ; not sure how to check for kafka errors here
-      (if sync
+      (if (first sync) ;;better optional arg?
         ;; is this io blocking?
         (-> (kafka/consume output-topic) ;; fixme return KafkaError
-            (assoc :message command)  ;;debugging
+            (assoc :message (:message command) :topic output-topic)  ;;debugging
             (ok)
             (header :x-sync true)) ;;debugging
-        (ok (assoc kafka-response :message command)))
+        (ok (assoc kafka-response :message (:message command))))
       (service-unavailable "command has not been received"))))
 
 (defn query-handler [query]

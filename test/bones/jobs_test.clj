@@ -21,59 +21,77 @@
 
 (deftest build-workflow-entry
   (testing "surrounds the symbol by other symbols: given a symbol x, create two vectors as: [[x-input x] [x x-output]]"
-    (let [conf {}
-          job-sym ::wat
-          result (jobs/build-workflow-entry conf job-sym)]
-      (is (= 2 (.length result)))
-      (is (= 2 (.length (first result))))
-      (is (= job-sym (last (first result))))
-      (is (= job-sym (first (last result)))))))
+    (let [job-sym :bones.jobs-test/wat
+          result (jobs/workflow job-sym)]
+      (is (= :bones.jobs-test..wat-input  (get-in result [0 0])))
+      (is (= :bones.jobs-test/wat         (get-in result [0 1])))
+      (is (= :bones.jobs-test/wat         (get-in result [1 0])))
+      (is (= :bones.jobs-test..wat-output (get-in result [1 1]))))))
 
 
 (deftest build-catalog-entry
   (testing "names are correct"
-    (let [conf {}
-          job-sym ::wat
-          result (jobs/build-catalog-for-job conf job-sym)]
-      result)))
+    (let [job-sym :bones.jobs-test/wat
+          result (jobs/catalog job-sym)]
+      (is (= :bones.jobs-test..wat-input (get-in result [0 :onyx/name])))
+      (is (= "bones.jobs-test..wat-input" (get-in result [0 :kafka/topic])))
+      (is (= :bones.jobs-test/wat (get-in result [1 :onyx/name])))
+      (is (= :bones.jobs-test/wat (get-in result [1 :onyx/fn])))
+      (is (= :bones.jobs-test..wat-output (get-in result [2 :onyx/name])))
+      (is (= "bones.jobs-test..wat-output" (get-in result [2 :kafka/topic]))))))
 
-;; Test vars
-(defn handle-complex-command [segment]
-  segment)
-
-(defn handle-simple-command [segment]
-  segment)
-
-(def background-jobs
-  [:bones.jobs-test/handle-complex-command
-   :bones.jobs-test/handle-simple-command])
+(deftest build-lifecycle-entry
+  (testing "tasks are keywords"
+    (let [job-sym :bones.jobs-test/wat
+          result (jobs/lifecycle job-sym)]
+      (is (= :bones.jobs-test..wat-input (get-in result [0 :lifecycle/task])))
+      (is (= :bones.jobs-test..wat-output (get-in result [1 :lifecycle/task]))))))
 
 
-(def onyx-peer-test-config
-  {:onyx/id "abcd1234"
-   :zookeeper/address "127.0.0.1:2181"
-   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
-   :onyx.messaging/impl :aeron
-   :onyx.messaging.aeron/allow-short-circuit? true
-   :onyx.messaging/bind-addr "localhost"
-   :onyx.messaging/peer-port 40200
-   :onyx.messaging.aeron/embedded-driver? true})
+(deftest build-jobs
+  (testing "the configuration get applied correctly"
+    (let [job-fns [:bones.jobs-test/wat]
+          conf {:zookeeper/address "1.2.3.4:2181"
+                :onyx.task-scheduler :onyx.task-scheduler/balanced
+                :kafka/serializer-fn :something/else
+                :kafka/deserializer-fn :something/other}
+          result (jobs/build-jobs conf job-fns)]
+      (is (= "1.2.3.4:2181" (get-in result [0 :catalog 0 :kafka/zookeeper])))
+      (is (= :something/else (get-in result [0 :catalog 2 :kafka/serializer-fn])))
+      (is (= :something/other (get-in result [0 :catalog 0 :kafka/deserializer-fn])))
+      (is (= :bones.jobs-test/wat (get-in result [0 :catalog 1 :onyx/fn])))
+      (is (= :onyx.task-scheduler/balanced (get-in result [0 :task-scheduler])))))
 
-;; (def background-onyx-config
-;;   {:onyx/id "123"
-;;    :onyx/batch-size 1
-;;    :zookeeper/address "127.0.0.1:2181"
-;;    :onyx.messaging/impl :aeron
-;;    :onyx.peer/job-scheduler :onyx.job-scheduler/balanced
-;;    :zookeeper.server/port 2181
-;;    :onyx.messaging/bind-addr "localhost" } )
 
-(def jobs
-  (jobs/submit-jobs onyx-peer-test-config
-                    (jobs/build-jobs onyx-peer-test-config background-jobs)))
 
-(deftest submit-jobs
-  (testing "complete submission works when a :job-id is returned"
-    (let [result (jobs/submit-jobs background-onyx-config
-                                   (jobs/build-jobs background-onyx-config background-jobs))]
-      (is (:job-id (first result))))))
+(comment
+  ;; example output
+[{:workflow [[:bones.jobs-test..wat-input :bones.jobs-test/wat]
+             [:bones.jobs-test/wat :bones.jobs-test..wat-output]],
+  :catalog [{:onyx/name :bones.jobs-test..wat-input,
+             :onyx/plugin :onyx.plugin.kafka/read-messages,
+             :onyx/batch-size 1,
+             :onyx/type :input,
+             :onyx/medium :kafka,
+             :kafka/topic "bones.jobs-test..wat-input",
+             :kafka/zookeeper "1.2.3.4:2181",
+             :kafka/deserializer-fn :bones.serializer/deserializer}
+            {:onyx/name :bones.jobs-test/wat,
+             :onyx/fn :bones.jobs-test/wat,
+             :onyx/batch-size 1,
+             :onyx/type :function}
+            {:onyx/name :bones.jobs-test..wat-output,
+             :onyx/plugin :onyx.plugin.kafka/write-messages,
+             :onyx/batch-size 1,
+             :onyx/type :output,
+             :onyx/medium :kafka,
+             :kafka/topic "bones.jobs-test..wat-output",
+             :kafka/zookeeper "1.2.3.4:2181",
+             :kafka/serializer-fn :bones.serializer/serializer}],
+  :lifecycles [{:lifecycle/task :bones.jobs-test..wat-input,
+                :lifecycle/calls :onyx.plugin.kafka/read-messages-calls}
+               {:lifecycle/task :bones.jobs-test..wat-output,
+                :lifecycle/calls :onyx.plugin.kafka/write-messages-calls}],
+  :task-scheduler :onyx.task-scheduler/balanced}]
+
+)

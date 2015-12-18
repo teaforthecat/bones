@@ -1,6 +1,7 @@
 (ns bones.system
   (:require [com.stuartsierra.component :as component]
             [bones.http :refer [app]]
+            [bones.jobs :as jobs]
             [system.components.aleph :refer [new-web-server]]
             [onyx.api]
             [onyx.log.zookeeper :refer [zookeeper]]
@@ -30,6 +31,14 @@
   (assoc onyx-peer-test-config
          :onyx.messaging.aeron/allow-short-circuit? false))
 
+(def background-jobs
+  [::handle-complex-command
+   ::handle-simple-command])
+
+
+;; TODO: add to system
+#_(jobs/submit-jobs onyx-peer-test-config
+               (jobs/build-jobs background-onyx-config background-jobs))
 
 ;; this is for onyx.api/submit-job
 (def background-onyx-config
