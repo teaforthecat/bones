@@ -4,6 +4,7 @@
             [clojure.test.check.properties :as prop :include-macros true]
             [schema.experimental.generators :as g]
             [schema.test]
+            [manifold.stream]
             [ring.mock.request :as mock]
             [peridot.core :as p]
             [byte-streams :as bs]
@@ -86,3 +87,14 @@
       (is (= 200 (:status response)))
       (is (= "true" (:x-sync (:headers response))))
       (is (= command (:message (:body response)))))))
+
+
+(deftest events-handler
+  (testing "basic options"
+    (let [response (http/event-stream :topic-a (lazy-seq [1 2 3]) pr-str {"Mime-Type" "application/transit+json"})
+          body (:body response)]
+      (is (= "text/event-stream" (get-in response [:headers "Content-Type"])))
+      (is (= "application/transit+json" (get-in response [:headers "Mime-Type"])))
+      (is (= "event: :topic-a \ndata: 1 \n\n" @(manifold.stream/take! body) ))
+      (is (= "event: :topic-a \ndata: 2 \n\n" @(manifold.stream/take! body) ))
+      (is (= "event: :topic-a \ndata: 3 \n\n" @(manifold.stream/take! body) )))))

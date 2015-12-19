@@ -54,20 +54,25 @@
 (defn query-handler [query]
   (ok {:results "HI!"}))
 
-(defn event-stream [source serializer ]
-  ;; todo add mime options
-  {:status 200
-   :headers {"Content-Type" "text/event-stream"
-             "Cache-Control" "no-cache"
-             "Connection" "keep-alive"
-             "Mime-Type" "application/transit+msgpack"}
-   :body (ms/transform
-          ;; todo: event name and format options
-          (map #(format "data: %s \n\n" (serializer %)))
-          1 ;;buffer size
-          (ms/->source source))})
+(defn event-stream
+  "Server Sent Events
+  (http/event-stream :topic-a (lazy-seq [1 2 3]) pr-str {\"Mime-Type\" \"application/transit+json\"})"
+  ([event-name source]
+   (event-stream event-name source prn-str {}))
+  ([event-name source serializer]
+   (event-stream event-name source serializer {}))
+  ([event-name source serializer headers]
+   {:status 200
+    :headers (merge {"Content-Type"  "text/event-stream"
+                     "Cache-Control" "no-cache"
+                     "Connection"    "keep-alive"}
+                    headers)
+    :body (ms/transform
+           (map #(format "event: %s \ndata: %s \n\n" event-name (serializer %)))
+           1 ;;buffer size
+           (ms/->source source))}))
 
-#_@(kafka/produce "bcd" {:x "y"}) ;;testing
+#_@(kafka/produce "bcd" {:x "y"}) ;;testing: curl localhost:3000/api/events?topic=bcd
 (defn events-handler [req]
   "a connection to the client stays open here"
   (let [user-id "abc"
@@ -75,7 +80,7 @@
     (let [[cnsmr messages] (kafka/open-consumer user-id topic)]
       ;; todo: better cleanup method
       (a/go (a/<! (a/timeout (* 10 1000))) (kafka/shutdown cnsmr))
-      (event-stream messages (comp
+      (event-stream topic messages (comp
                               #(bs/convert % String)
                               :value)))))
 
