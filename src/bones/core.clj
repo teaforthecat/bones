@@ -7,18 +7,22 @@
 
 ;; jobs declared in resources/conf/test.edn
 (defn wat [segment]
-  (println segment)
-  (-> segment
-      (assoc-in [:message :processed] true)
-      (assoc-in [:message :output] segment)
-      (assoc :key (dissoc segment :_kafka-key))))
+  (let [kafka-key (:_kafka-key segment)]
+    (-> segment
+        (dissoc :_kafka-key)
+        (assoc :key kafka-key)
+        (assoc-in [:message :processed] true)
+        (assoc-in [:message :input] segment)
+        (assoc-in [:message :output] {:a "a hammer"}))))
 
 (defn who [segment]
-  (println segment)
-  (-> segment
-      (assoc-in [:message :processed] true)
-      (assoc-in [:message :output] segment)
-      (assoc :key (dissoc segment :_kafka-key))))
+  (let [kafka-key (:_kafka-key segment)]
+    (-> segment
+        (dissoc :_kafka-key)
+        (assoc :key kafka-key)
+        (assoc-in [:message :processed] true)
+        (assoc-in [:message :input] segment)
+        (assoc-in [:message :output] {:a "Mr. Charles"}))))
 
 
 #_(def system (system/system {:env :test :conf-files ["resources/conf/test.edn"]}))

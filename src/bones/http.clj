@@ -61,7 +61,7 @@
   ([event-name source]
    (event-stream event-name source {}))
   ([event-name source headers]
-   {:status 200
+   {:status 200 ;; to disconnect forever: HTTP 204 No Content
     :headers (merge {"Content-Type"  "text/event-stream"
                      "Cache-Control" "no-cache"
                      "Connection"    "keep-alive"}
@@ -79,6 +79,7 @@
         group-id user-id]
     (if group-id
       (let [csmr (kafka/personal-consumer msg-ch shutdown-ch group-id topic)]
+        (a/go (a/<! (a/timeout 60e3)) (a/>! shutdown-ch :shutdown))
         (event-stream topic msg-ch))
       {:status 401 :body "unauthorized" :headers {}})))
 

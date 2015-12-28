@@ -50,16 +50,14 @@
   (zkc/shutdown consumer))
 
 (defn authorized? [msg group-id]
-  true
-  #_(and (:key msg)
-       (= group-id (bs/convert (:key msg) String))))
+  (and (:key msg)
+       (= (str group-id) (deserialize (:key msg)))))
 
 (defn personal-consumer [chan shutdown-ch group-id topic]
   (let [cnsmr (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
                              "group.id" group-id
                              "auto.offset.reset" "largest"})]
     (a/go (a/<! shutdown-ch) (zkc/shutdown cnsmr)) ;; easy cleanup
-
     (a/go
       (try
         (doseq [m (zkc/messages cnsmr topic)]
