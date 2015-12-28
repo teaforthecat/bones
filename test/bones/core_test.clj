@@ -1,41 +1,28 @@
 (ns bones.core-test
   (:require [clojure.test :refer [deftest testing is use-fixtures]]
-            [clojure.test.check.clojure-test :refer [defspec]]
-            [clojure.test.check :as tc]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop :include-macros true]
-            [ring.mock.request :as mock]
-            [bones.http :refer [handler]]
-            [schema.core :as s]
-            [schema.test]
-            [schema.experimental.complete :as c]
-            [schema.experimental.generators :as g]
-            [onyx-kafka.kafka/read-messages :refer [start-kafka-consumer
-                                                    close-read-messages
-                                                    close-write-resources]]
-            [byte-streams :as bs]))
+            [schema.test]))
 
 
 (use-fixtures :once schema.test/validate-schemas)
 
-(deftest ring-handler
-  (testing "ring requests"
-    (let [response @(handler (mock/request :get "/"))]
-      (is (= 200 (:status response)))
-      (is (= "Hello World!\n" (bs/convert (:body response) String))))
-    (let [response (handler (mock/request :get "/other" {:abc 123}))]
-      (is (= 200 (:status response)))
-      (is (= "Hello World!\n" (bs/convert (:body response) String))))
-    ))
+;; (deftest ring-handler
+;;   (testing "ring requests"
+;;     (let [response @(handler (mock/request :get "/"))]
+;;       (is (= 200 (:status response)))
+;;       (is (= "Hello World!\n" (bs/convert (:body response) String))))
+;;     (let [response (handler (mock/request :get "/other" {:abc 123}))]
+;;       (is (= 200 (:status response)))
+;;       (is (= "Hello World!\n" (bs/convert (:body response) String))))
+;;     ))
 
 
-(deftest message-round-trip
-  (testing "message-round-trip"
-    (let [response @(handler (mock/request :get "/"))
-          reader-ch (:kafka/reader-ch start-kafka-consumer)]
-      (put-message)
-      (is (= 200 (take! reader-ch)))
-      (is (= "Hello World!\n" (bs/convert (:body response) String))))))
+;; (deftest message-round-trip
+;;   (testing "message-round-trip"
+;;     (let [response @(handler (mock/request :get "/"))
+;;           reader-ch (:kafka/reader-ch start-kafka-consumer)]
+;;       (put-message)
+;;       (is (= 200 (take! reader-ch)))
+;;       (is (= "Hello World!\n" (bs/convert (:body response) String))))))
 
 
 

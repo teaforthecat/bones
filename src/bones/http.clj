@@ -6,6 +6,7 @@
             [compojure.response :refer [Renderable]]
             [manifold.deferred :as d]
             [manifold.stream :as ms]
+            [manifold.bus :as mb]
             [clojure.core.async :as a]
             [schema.core :as s]
             [byte-streams :as bs]))
@@ -15,9 +16,14 @@
   manifold.deferred.Deferred
   (render [d _] d))
 
+(def some-jobs
+  {":bones.jobs-test/wat" (a/chan)
+   ":bones.jobs-test/who" (a/chan)})
+
 (s/defschema Command
   {:message s/Str
-   :topic s/Str })
+   :topic (s/enum ":bones.jobs-test/wat"
+                  ":bones.jobs-test/who")})
 
 (s/defschema Query
   {:query {s/Keyword s/Str}})
@@ -37,18 +43,12 @@
    (s/optional-key :message) s/Any})
 
 
-(defn command-handler [command & sync]
+(defn command-handler [command user-id sync]
   (let [input-topic (jobs/topic-name-input (:topic command))
         output-topic (jobs/topic-name-output (:topic command))
-        kafka-response @(kafka/produce input-topic (:message command))]
-    (if (:topic kafka-response) ; not sure how to check for kafka errors here
-      (if (first sync) ;;better optional arg?
-        ;; is this io blocking?
-        (-> (kafka/consume output-topic) ;; fixme return KafkaError
-            (assoc :message (:message command) :topic output-topic)  ;;debugging
-            (ok)
-            (header :x-sync true)) ;;debugging
-        (ok (assoc kafka-response :message (:message command))))
+        kafka-response @(kafka/produce input-topic user-id (:message command))]
+    (if (:topic kafka-response) ;; block for submitting to kafka
+      (ok kafka-response) ;; return result of produce
       (service-unavailable "command has not been received"))))
 
 (defn query-handler [query]
@@ -58,32 +58,28 @@
   "Server Sent Events
   (http/event-stream :topic-a (lazy-seq [1 2 3]) pr-str {\"Mime-Type\" \"application/transit+json\"})"
   ([event-name source]
-   (event-stream event-name source prn-str {}))
-  ([event-name source serializer]
-   (event-stream event-name source serializer {}))
-  ([event-name source serializer headers]
+   (event-stream event-name source {}))
+  ([event-name source headers]
    {:status 200
     :headers (merge {"Content-Type"  "text/event-stream"
                      "Cache-Control" "no-cache"
                      "Connection"    "keep-alive"}
                     headers)
     :body (ms/transform
-           (map #(format "event: %s \ndata: %s \n\n" event-name (serializer %)))
+           (map #(format "event: %s \ndata: %s \n\n" event-name %))
            1 ;;buffer size
            (ms/->source source))}))
 
 #_@(kafka/produce "bcd" {:x "y"}) ;;testing: curl localhost:3000/api/events?topic=bcd
-(defn events-handler [req]
+(defn events-handler [user-id topic]
   "a connection to the client stays open here"
-  (let [user-id "abc"
-        topic (:topic (:params req))]
-    (let [[cnsmr messages] (kafka/open-consumer user-id topic)]
-      ;; todo: better cleanup method
-      (a/go (a/<! (a/timeout (* 10 1000))) (kafka/shutdown cnsmr))
-      (event-stream topic messages (comp
-                              #(bs/convert % String)
-                              :value)))))
-
+  (let [msg-ch (a/chan)
+        shutdown-ch (a/chan)
+        group-id user-id]
+    (if group-id
+      (let [csmr (kafka/personal-consumer msg-ch shutdown-ch group-id topic)]
+        (event-stream topic msg-ch))
+      {:status 401 :body "unauthorized" :headers {}})))
 
 (def app
   (api
@@ -91,14 +87,17 @@
    (swagger-docs)
    (swagger-ui)
    (context* "/api" []
-             (POST* "/command" []
+             (POST* "/command" {:as req}
                     :body-params [command :- Command]
-                    :header-params [{x-sync false}]
+                    :header-params [{x-sync false}  {user-id 0}]
                     ;; :return KafkaResponse or Error
-                    (command-handler command x-sync))
+                    ;; TODO: get real user-id
+                    (command-handler command (str user-id) x-sync))
+
              (GET* "/events" {:as req}
                    :query-params [topic :- s/Str]
-                   (events-handler req))
+                   :header-params [{user-id 0}]
+                   (events-handler user-id topic))
              (GET* "/query" []
                    :query-params [query :- s/Any]
                    :return QueryResult
@@ -118,3 +117,5 @@
             :request-method :get
             :query-params {:query {:x "y"}}})
       (:body))
+;; time curl localhost:3000/api/command -XPOST -H "Content-Type: application/edn"  -v -d '{:command {:topic ":bones.jobs-test/who" :message "helloxfz"}}'  -H "user-id: 123"
+;; time curl localhost:3000/api/command -XPOST -H "Content-Type: application/edn"  -v -d '{:command {:topic ":bones.jobs-test/who" :message "helloxfz"}}'  -H "user-id: 123" -H "X-SYNC: true"

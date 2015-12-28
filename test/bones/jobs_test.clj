@@ -60,7 +60,7 @@
       (is (= :something/else (get-in result [0 :catalog 2 :kafka/serializer-fn])))
       (is (= :something/other (get-in result [0 :catalog 0 :kafka/deserializer-fn])))
       (is (= :bones.jobs-test/wat (get-in result [0 :catalog 1 :onyx/fn])))
-      (is (= :onyx.task-scheduler/balanced (get-in result [0 :task-scheduler])))))
+      (is (= :onyx.task-scheduler/balanced (get-in result [0 :task-scheduler]))))))
 
 
 
