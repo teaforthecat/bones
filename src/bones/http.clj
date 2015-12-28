@@ -21,9 +21,9 @@
    ":bones.jobs-test/who" (a/chan)})
 
 (s/defschema Command
-  {:message s/Str
-   :topic (s/enum ":bones.jobs-test/wat"
-                  ":bones.jobs-test/who")})
+  {:message {s/Any s/Any}
+   :topic (s/enum ":bones.core/wat"
+                  ":bones.core/who")})
 
 (s/defschema Query
   {:query {s/Keyword s/Str}})
@@ -46,7 +46,8 @@
 (defn command-handler [command user-id sync]
   (let [input-topic (jobs/topic-name-input (:topic command))
         output-topic (jobs/topic-name-output (:topic command))
-        kafka-response @(kafka/produce input-topic user-id (:message command))]
+        message (merge (:message command) {:_kafka-key user-id})
+        kafka-response @(kafka/produce input-topic user-id message)]
     (if (:topic kafka-response) ;; block for submitting to kafka
       (ok kafka-response) ;; return result of produce
       (service-unavailable "command has not been received"))))

@@ -13,6 +13,7 @@
                  [ring-mock "0.1.5"]
                  [peridot "0.4.2"]
                  [prismatic/schema "1.0.3"]
+                 [environ "1.0.1"]
                  ]
   :plugins [[lein-expectations "0.0.8"]]
   :profiles {:dev {:source-paths ["src"]

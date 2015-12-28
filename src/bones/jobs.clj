@@ -12,22 +12,30 @@
   {:onyx/name (keyword topic)
    :onyx/plugin :onyx.plugin.kafka/read-messages
    :onyx/batch-size 1
+   :onyx/min-peers 1 ;;?
+   :onyx/max-peers 1 ;;?
    :onyx/type :input
    :onyx/medium :kafka
+   :kafka/group-id "onyx" ;;?
    :kafka/topic topic
+   :kafka/offset-reset :largest
    :kafka/zookeeper "127.0.0.1:2181" ;; can be updated in conf
-   :kafka/deserializer-fn :bones.serializer/deserializer}) ;; can be updated in conf
+   :kafka/deserializer-fn :bones.serializer/deserialize}) ;; can be updated in conf
 
 (defn topic-writer [^String topic]
   "builds a catalog entry that writes to a kafka topic"
   {:onyx/name (keyword topic)
    :onyx/plugin :onyx.plugin.kafka/write-messages
    :onyx/batch-size 1
+   :onyx/min-peers 1 ;;?
+   :onyx/max-peers 1 ;;?
    :onyx/type :output
    :onyx/medium :kafka
+   :kafka/group-id "onyx" ;;?
    :kafka/topic topic
+   :kafka/offset-reset :largest
    :kafka/zookeeper "127.0.0.1:2181" ;; can be updated in conf
-   :kafka/serializer-fn :bones.serializer/serializer}) ;; can be updated in conf
+   :kafka/serializer-fn :bones.serializer/serialize}) ;; can be updated in conf
 
 (defn topic-function [^clojure.lang.Keyword ns-fn]
   "builds a catalog entry that performs some user function"
@@ -81,7 +89,7 @@
   {:workflow (workflow job-sym)
    :catalog (catalog job-sym)
    :lifecycles (lifecycle job-sym)
-   :task-scheduler :onyx.task-scheduler/greedy})
+   :task-scheduler :onyx.task-scheduler/balanced})
 
 (defn build-configured-job [conf job-sym]
   "here we combine the configurable bits with the built bits"

@@ -50,7 +50,8 @@
   (zkc/shutdown consumer))
 
 (defn authorized? [msg group-id]
-  (and (:key msg)
+  true
+  #_(and (:key msg)
        (= group-id (bs/convert (:key msg) String))))
 
 (defn personal-consumer [chan shutdown-ch group-id topic]

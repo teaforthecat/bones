@@ -1,16 +1,41 @@
 (ns bones.core
-  (:require [bones.system :as system]))
+  (:require [bones.system :as system]
+            [onyx.plugin.kafka :refer [read-messages write-messages]] ;; this is required for Jobs start
+            [bones.serializer :refer [serialize deserialize]] ;; this is required for Jobs start
+            [bones.jobs-test]
+            ))
+
+;; jobs declared in resources/conf/test.edn
+(defn wat [segment]
+  (println segment)
+  (-> segment
+      (assoc-in [:message :processed] true)
+      (assoc-in [:message :output] segment)
+      (assoc :key (dissoc segment :_kafka-key))))
+
+(defn who [segment]
+  (println segment)
+  (-> segment
+      (assoc-in [:message :processed] true)
+      (assoc-in [:message :output] segment)
+      (assoc :key (dissoc segment :_kafka-key))))
 
 
-#_(def system (system/system {:env :test :port 3000}))
+#_(def system (system/system {:env :test :conf-files ["resources/conf/test.edn"]}))
 
 #_(.stop (:server system))
 #_(.start (:server system))
 #_(.restart (:server system))
 #_(:onyx-peer-group system)
 #_(:onyx-peers system)
+#_(alter-var-root #'system assoc :jobs {})
+#_(alter-var-root #'system assoc :onyx-peers {})
 #_(alter-var-root #'system com.stuartsierra.component/start)
 #_(alter-var-root #'system com.stuartsierra.component/stop)
+#_(alter-var-root #'system com.stuartsierra.component/start-system [:jobs :conf])
+#_(alter-var-root #'system com.stuartsierra.component/stop-system [:jobs :conf])
+
+#_(:jobs system)
 
 
 ;; (comment

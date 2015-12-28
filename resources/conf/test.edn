@@ -1,0 +1,13 @@
+{:port 3000
+ :serializer {:format :msgpack}
+ :jobs [:bones.core/wat
+        :bones.core/who]
+ :jobs-config
+  {:onyx/id "abcd1234"
+   :zookeeper/address "127.0.0.1:2181"
+   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
+   :onyx.messaging/impl :aeron
+   :onyx.messaging.aeron/allow-short-circuit? true
+   :onyx.messaging/bind-addr "localhost"
+   :onyx.messaging/peer-port 40200
+   :onyx.messaging.aeron/embedded-driver? true}}
