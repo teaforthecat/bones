@@ -1,13 +1,17 @@
-{:port 3000
- :serializer {:format :msgpack}
- :jobs [:bones.core/wat
-        :bones.core/who]
- :jobs-config
-  {:onyx/id "abcd1234"
-   :zookeeper/address "127.0.0.1:2181"
-   :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
-   :onyx.messaging/impl :aeron
-   :onyx.messaging.aeron/allow-short-circuit? true
-   :onyx.messaging/bind-addr "localhost"
-   :onyx.messaging/peer-port 40200
-   :onyx.messaging.aeron/embedded-driver? true}}
+{:http/port 3000
+ :bones/serializer {:format :msgpack}
+ :onyx/id "abcd1234"
+ :zookeeper/address "127.0.0.1:2181"
+ :zookeeper.server/port 2181
+ :zookeeper/server? true
+ :kafka/hostname "localhost"
+ :kafka/port 9092
+ :kafka/broker-id 0
+ :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
+ :onyx.messaging/impl :aeron
+ :onyx.messaging.aeron/allow-short-circuit? true
+ :onyx.messaging/bind-addr "localhost"
+ :onyx.messaging/peer-port 40200
+ :onyx.messaging.aeron/embedded-driver? true
+ :onyx.peer/n-peers 4
+ }

@@ -37,6 +37,7 @@
 #_(alter-var-root #'system com.stuartsierra.component/start)
 #_(alter-var-root #'system com.stuartsierra.component/stop)
 #_(alter-var-root #'system com.stuartsierra.component/start-system [:jobs :conf])
+#_(alter-var-root #'system com.stuartsierra.component/start-system [:server :conf])
 #_(alter-var-root #'system com.stuartsierra.component/stop-system [:jobs :conf])
 
 #_(:jobs system)

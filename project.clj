@@ -14,10 +14,14 @@
                  [peridot "0.4.2"]
                  [prismatic/schema "1.0.3"]
                  [environ "1.0.1"]
+                 [buddy/buddy-auth "0.8.1"]
+                 [buddy/buddy-hashers "0.9.1"]
+                 [datascript "0.13.3"]
                  ]
   :plugins [[lein-expectations "0.0.8"]]
   :profiles {:dev {:source-paths ["src"]
                    :dependencies [[expectations "1.4.45"]
+                                  [prone "0.8.3"]
                                   ;[expectations "2.0.9"]
                                   ]}
              :test {:dependencies [[expectations "2.0.9"]]}})

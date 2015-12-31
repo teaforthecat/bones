@@ -29,18 +29,26 @@
 
 
 (deftest configuration-system-test
-  (testing "read-conf-data"
-    (is (= {:xyz "hello"}
-           (system/read-conf-data [example-conf-file]))))
+  (let [usys (system/system {:conf-files [example-conf-file]})
+        sys (component/start-system usys [:conf])]
+    (testing "read-conf-data"
+      (is (= "hello"
+             (get-in sys [:conf :xyz]))))
+    (testing "reloadable"
+      (is (= nil (-> sys
+                     (:conf)
+                     (.stop)
+                     (:xyz))))
+      (is (= "hello" (-> sys
+                         (:conf)
+                         (.reload)
+                         (:xyz))))))
+
   (testing "with all empty files"
     (is (.equals {:conf-files ["nothing" "also.nothing"]}
            (-> {:conf-files ["nothing" "also.nothing"]}
                (system/map->Conf)
                (.reload)))))
-  (testing "conf reads edn files"
-    (let [conf (.reload (system/map->Conf {:conf-files [example-conf-file]}))]
-      (is (= "hello"
-             (:xyz conf)))))
   (testing "system integration"
     (let [system (system/system {:conf-files [example-conf-file]})]
       (.start (:conf system)))))

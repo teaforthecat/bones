@@ -2,7 +2,7 @@
   (:require [clojure.test.check :as tc]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop :include-macros true]
-            [schema.experimental.generators :as g]
+            ;; [schema.experimental.generators :as g]
             [schema.test]
             [ring.mock.request :as mock]
             [peridot.core :as p]
