@@ -90,8 +90,8 @@
               pconf (assoc conf :zookeeper/server? false)]
           (doseq [[job spec] job-specs]
             ;; create topics required by onyx.kafka plugin to exist
-            (bones.kafka/produce (bones.jobs/topic-name-input job) "init" "init")
-            (bones.kafka/produce (bones.jobs/topic-name-output job) "init" "init"))
+            (bones.kafka/produce (bones.jobs/topic-name-input job) "init" {:segment "init"})
+            (bones.kafka/produce (bones.jobs/topic-name-output job) "init" {:segment "init"}))
           (assoc cmp :submitted-jobs
                  (->> (keys job-specs)
                       (bones.jobs/build-jobs pconf)

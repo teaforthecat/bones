@@ -4,7 +4,7 @@
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
             [compojure.api.sweet :refer [defroutes* defapi api context* GET* POST* ANY* swagger-docs swagger-ui]]
             [compojure.response :refer [Renderable]]
-            [compojure.api.exception :as ex]
+            [compojure.api.exception :as ex] ;; for ::ex/default
             [manifold.deferred :as d]
             [manifold.stream :as ms]
             [manifold.bus :as mb]
@@ -109,7 +109,7 @@
         job-fn (jobs/topic-to-sym job-topic);; this is a funny dance
         input-topic (jobs/topic-name-input job-fn)
         output-topic (jobs/topic-name-output job-fn)
-        message (merge message {:_kafka-key user-id}) ;;FIXME
+        message (merge message {:_kafka-key user-id}) ;; store auth key for output topic
         kafka-response @(kafka/produce input-topic user-id message)]
     (if (:topic kafka-response) ;; block for submitting to kafka
       (ok kafka-response) ;; return result of produce
@@ -141,12 +141,13 @@
        `(POST* ~(str "/command/" job-topic) {:as ~'req}
                :body-params [~'message :- ~spec]
                :header-params [{~'AUTHORIZATION "Token: xyz"}]
-               (if (~'authenticated? ~'req)
+               (if (~'buddy.auth/authenticated? ~'req)
                  (command-handler ~job-topic ~'message ~'req)
-                 (~'unauthorized "Valid Auth Token required")
+                 (~'ring.util.http-response/unauthorized "Valid Auth Token required")
                  ))))
    (eval job-specs)))
 
+;; this could probably go away. prone isn't vary helpful with ajax requests, but the few stacktraces are better than nothing
 (defn api-ex-handler [error error-type request]
   (internal-server-error {:message (.getMessage error)
                           :stacktrace (take 3 (map prone.stacks/normalize-frame (.getStackTrace error) ))
@@ -167,16 +168,16 @@
                 (GET* "/events" {:as ~'req}
                       :query-params [~'topic :- ~@outputs-enum]
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
-                      (if (~'authenticated? ~'req)
+                      (if (~'buddy.auth/authenticated? ~'req)
                         (events-handler ~'topic ~'req)
-                        (~'unauthorized "Authentication Token required")))
+                        (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/query" {:as ~'req}
                       :query-params [~'query :- s/Any]
                       :return QueryResult
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
-                      (if (~'authenticated? ~'req)
+                      (if (~'buddy.auth/authenticated? ~'req)
                         (query-handler ~'query)
-                        (~'unauthorized "Valid Auth Token required"))))
+                        (~'ring.util.http-response/unauthorized "Valid Auth Token required"))))
       (POST* "/login" {:as ~'req}
          :tags ["login"]
          :body-params [~'username :- s/Str ~'password :- s/Str]
@@ -184,8 +185,14 @@
       (ANY* "/*" [] (not-found "not found")))))
 
 
+(s/defschema HandlerConf
+  {:bones.http/path s/Str
+   :bones/jobs {s/Keyword (s/protocol s/Schema)}
+   s/Any s/Any})
 
-(def app
-  (wrap-authentication
-   (eval (cqrs "/api" some-jobs))
-   auth-backend))
+(defn build-handler [conf]
+  (s/validate HandlerConf conf)
+  (let [{:keys [:bones.http/path :bones/jobs]} conf]
+    (wrap-authentication
+     (eval (cqrs path jobs))
+     auth-backend)))

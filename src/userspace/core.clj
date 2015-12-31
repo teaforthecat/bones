@@ -18,18 +18,15 @@
                           :room-number s/Int}}
   )
 
-(def path "/api")
 
-(def app #'http/app)
+(def handler (http/build-handler {:bones.http/path "/api"
+                                  :bones/jobs some-jobs}))
 
 (def sys (system/system {:conf-files ["resources/conf/test.edn"]
-                         :http/handler #'userspace.core/app
+                         :http/handler #'userspace.core/handler
+                         :bones.http/path "/api"
                          :bones/jobs some-jobs}))
-
-(def job-sys (system/system {:conf-files ["resources/conf/test.edn"]
-                             :bones/jobs some-jobs}))
-
-
+(comment ;; various ways to start parts or all of the system
 (system/start-system sys :http :conf)
 (system/stop-system sys :http :conf)
 
@@ -39,12 +36,16 @@
 (system/start-system sys :http :kafka :zookeeper :conf)
 (system/stop-system sys :http :kafka :zookeeper :conf)
 
-(system/start-system sys :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
-(system/stop-system sys :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+(system/start-system sys :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+(system/stop-system sys :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
 
 (system/start-system sys :onyx-peers :onyx-peer-group :conf)
 (system/stop-system sys :onyx-peers :onyx-peer-group :conf)
 
+(system/start-system sys :jobs :conf)
+(system/stop-system sys :jobs)
 
-(system/start-system job-sys :jobs :conf)
-(system/stop-system job-sys :jobs)
+
+(system/start-system sys)
+(system/stop-system sys)
+)

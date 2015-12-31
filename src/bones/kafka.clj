@@ -22,7 +22,9 @@
 
 (defn authorized? [msg group-id]
   (and (:key msg)
-       (= group-id (deserialize (:key msg)))))
+       (let [m-key (str (deserialize (:key msg)))
+             user-id (str group-id)]
+         (= user-id m-key ))))
 
 (defn personal-consumer [chan shutdown-ch group-id topic]
   (let [cnsmr (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
