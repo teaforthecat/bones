@@ -11,11 +11,12 @@ See `src/userspace/core.clj` for intended usage example
 
 ## So far so good
 
-1. First create the users with this line `#_(map create-user users)` in the `http.clj` file
-2. Then login with "jerry:jerry" as below to get a token
-3. Then setup an SSE event listener
-4. Then post to a command
-5. See the output on the event listener
+1. First create some users in memory with this line `#_(map create-user users)` in the `http.clj` file
+2. Then start the system by evaluating `(system/start-system sys)` in the `userspace/core.clj` file
+3. Then login with "jerry:jerry" as below to get a token
+4. Then setup an SSE event listener
+5. Then post to a command
+6. See the output on the event listener
 
 
 ```bash
