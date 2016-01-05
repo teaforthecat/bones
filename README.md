@@ -64,6 +64,10 @@ curl -X POST --header "Content-Type: application/json" --header "Accept: applica
 
 ```
 
+### Testing CORS
+```
+curl 'http://localhost:3000/login' -X OPTIONS -H 'Access-Control-Request-Method: POST' -H 'Origin: http://localhost:3449' -H 'Accept-Encoding: gzip, deflate, sdch' -H 'Accept-Language: en-US,en;q=0.8' -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36' -H 'Accept: */*' -H 'Referer: http://localhost:3449/' -H 'Connection: keep-alive' -H 'DNT: 1' -H 'Access-Control-Request-Headers: content-type' --compressed -v
+```
 
 ## License
 

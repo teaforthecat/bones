@@ -1,8 +1,10 @@
 (ns bones.http
   (:require [bones.kafka :as kafka]
             [bones.jobs :as jobs]
+            [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
-            [compojure.api.sweet :refer [defroutes* defapi api context* GET* POST* ANY* swagger-docs swagger-ui]]
+            [ring.middleware.cors :refer [wrap-cors]]
+            [compojure.api.sweet :refer [defroutes* defapi api context* GET* POST* OPTIONS* ANY* swagger-docs swagger-ui]]
             [compojure.response :refer [Renderable]]
             [compojure.api.exception :as ex] ;; for ::ex/default
             [manifold.deferred :as d]
@@ -159,6 +161,8 @@
         commands `(make-commands ~jobs)]
     `(api
       {:formats [:json :edn]
+       :api-key.name "AUTHORIZATION"
+       :api-key.in "header"
        :exceptions {:handlers {::ex/default api-ex-handler}}}
       (swagger-ui)
       (swagger-docs)
@@ -182,6 +186,7 @@
          :tags ["login"]
          :body-params [~'username :- s/Str ~'password :- s/Str]
          (login-handler ~'username ~'password))
+      (OPTIONS* "/*" [] (ok "for cors"))
       (ANY* "/*" [] (not-found "not found")))))
 
 
@@ -190,9 +195,26 @@
    :bones/jobs {s/Keyword (s/protocol s/Schema)}
    s/Any s/Any})
 
+
+(def cors-headers
+  {"Access-Control-Allow-Origin" "http://localhost:3449"
+   "Access-Control-Allow-Headers" "Content-Type,AUTHORIZATION"
+   "Access-Control-Allow-Methods" "GET,POST,OPTIONS"
+   "Access-Control-Allow-Credentials" "true"})
+
+(defn all-cors
+  "Allow requests from all origins"
+  [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (update-in response [:headers]
+        merge cors-headers ))))
+
 (defn build-handler [conf]
   (s/validate HandlerConf conf)
   (let [{:keys [:bones.http/path :bones/jobs]} conf]
-    (wrap-authentication
-     (eval (cqrs path jobs))
-     auth-backend)))
+    (all-cors
+     (wrap-authentication
+      (eval (cqrs path jobs))
+      auth-backend)
+     )))

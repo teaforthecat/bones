@@ -16,12 +16,40 @@
                  [environ "1.0.1"]
                  [buddy/buddy-auth "0.8.1"]
                  [buddy/buddy-hashers "0.9.1"]
-                 [datascript "0.13.3"]
+                 [datascript "0.13.1"]
+                 [org.clojure/clojurescript "1.7.170"]
+                 [re-frame "0.6.0"]
+                 [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
+                 [com.stuartsierra/component "0.3.1"] ;;updated
+                 [prone "1.0.0"]
+                 [bidi "1.25.0"]
+                 [cljs-http "0.1.39"]
+                 [ring-cors "0.1.7"]
                  ]
-  :plugins [[lein-expectations "0.0.8"]]
-  :profiles {:dev {:source-paths ["src"]
-                   :dependencies [[expectations "1.4.45"]
-                                  [prone "0.8.3"]
-                                  ;[expectations "2.0.9"]
-                                  ]}
-             :test {:dependencies [[expectations "2.0.9"]]}})
+
+  :repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
+  :plugins-repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
+  :mirrors      {"clojars" {:name "tcrawley"
+                             :url "https://clojars-mirror.tcrawley.org/repo/" }}
+  :cljsbuild {
+              :builds [ { :id "dev"
+                         :source-paths ["src/cljs"]
+                         :figwheel true
+                         :compiler {
+                                    :main "bones.core"
+                                    :asset-path "js/out"
+                                    :output-to "resources/public/js/app.js"
+                                    :output-dir "resources/public/js/out" } } ]
+              }
+
+
+  :profiles  {:dev
+              {:dependencies [[figwheel-sidecar "0.5.0-2"]
+                              [com.cemerick/piggieback "0.2.1"] ]
+               :source-paths ["src" "src/cljs" "dev"] }}
+
+  :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  ;; in ~/.lein/profiles.clj:
+   ;; :repl {:plugins [[cider/cider-nrepl "0.10.0"]
+
+  )
