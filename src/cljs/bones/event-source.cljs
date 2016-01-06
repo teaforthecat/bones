@@ -10,11 +10,16 @@
         (println "already started stream")
         cmp)
       (do
-        (println "starting stream")
-        (let [src (js/EventSource. (:url cmp))]
+        (let [src (js/EventSource. (:url cmp) #js{ :withCredentials true } )]
+          (println "starting stream")
+          (.log js/console src)
+          (aset src "onerror" (fn [e] (.log js/console e)))
+          (aset src "onopen" (fn [e] (.log js/console e)))
+          (aset src "onmessage" (fn [e] (.log js/console e)))
+
           (-> cmp
               (assoc :stream src)
-              ;(assoc :state (.-readyState src))
+              (assoc :state (.-readyState src))
               )))))
   (stop [cmp]
     (if (:stream cmp)
@@ -30,7 +35,7 @@
   (map->EventSource {:url url}))
 
 (comment
-  (def es (event-source "/api/events?userspace.jobs..wat-output"))
+  (def es (event-source "http://localhost:3000/api/events?topic=userspace.jobs..wat-output"))
   (component/start es)
   (:stream es)
   (component/stop es)

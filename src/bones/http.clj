@@ -4,6 +4,8 @@
             [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
             [ring.middleware.cors :refer [wrap-cors]]
+            [ring.middleware.session.cookie :refer [cookie-store]]
+            [ring.middleware.session :refer [wrap-session]]
             [compojure.api.sweet :refer [defroutes* defapi api context* GET* POST* OPTIONS* ANY* swagger-docs swagger-ui]]
             [compojure.response :refer [Renderable]]
             [compojure.api.exception :as ex] ;; for ::ex/default
@@ -20,6 +22,7 @@
             [buddy.core.nonce :as nonce]
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends.token :refer [jwe-backend]]
+            [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [buddy.hashers :as hashers]
             [datascript.core :as ds]
@@ -34,6 +37,14 @@
 (def secret (nonce/random-bytes 32))
 (def algorithm {:alg :a256kw :enc :a128gcm})
 (def auth-backend (jwe-backend {:secret secret :options algorithm}))
+(def cookie-session-backend (session-backend))
+
+(defn cookie-session-middleware [handler]
+  " a 16-byte secret key so sessions last across restarts"
+  (wrap-session handler {:store (cookie-store {:key "a 16-byte secret"})
+                         ;; TODO: add :secure true
+                         :cookie-name "bones-session"
+                         :cookie-attrs {:http-only false}}))
 
 ;; passthrough to aleph
 (extend-protocol Renderable
@@ -103,7 +114,10 @@
       (let [claims {:user user-data
                     :exp (time/plus (time/now) (time/hours 1))}
             token (jwe/encrypt claims secret algorithm)]
-        (ok {:token token}))
+        ;;setup both token and cookie
+        ;;for /api/events EventSource
+        (-> (ok {:token token})
+            (update :session merge {:identity user-data})))
       (bad-request {:message "username or password is invalid"}))))
 
 (defn command-handler [job-topic message req]
@@ -214,7 +228,9 @@
   (s/validate HandlerConf conf)
   (let [{:keys [:bones.http/path :bones/jobs]} conf]
     (all-cors
-     (wrap-authentication
-      (eval (cqrs path jobs))
-      auth-backend)
-     )))
+     (cookie-session-middleware
+      (wrap-authentication
+       (eval (cqrs path jobs))
+       auth-backend
+       cookie-session-backend)
+      ))))

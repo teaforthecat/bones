@@ -36,8 +36,8 @@
 (system/start-system sys :http :kafka :zookeeper :conf)
 (system/stop-system sys :http :kafka :zookeeper :conf)
 
-(system/start-system sys :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
-(system/stop-system sys :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+(system/start-system sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+(system/stop-system sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
 
 (system/start-system sys :onyx-peers :onyx-peer-group :conf)
 (system/stop-system sys :onyx-peers :onyx-peer-group :conf)
