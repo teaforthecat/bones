@@ -19,6 +19,7 @@
                  [datascript "0.13.1"]
                  [org.clojure/clojurescript "1.7.170"]
                  [re-frame "0.6.0"]
+                 [reagent-forms "0.5.13"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [com.stuartsierra/component "0.3.1"] ;;updated
                  [prone "1.0.0"]
@@ -33,7 +34,7 @@
                              :url "https://clojars-mirror.tcrawley.org/repo/" }}
   :cljsbuild {
               :builds [ { :id "dev"
-                         :source-paths ["src/cljs"]
+                         :source-paths ["src/cljs" "src/"]
                          :figwheel true
                          :compiler {
                                     :main "bones.core"

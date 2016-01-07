@@ -8,6 +8,18 @@
 ;; TODO: give credit / MIT License
 ;; https://github.com/rmoehn/theatralia/blob/devel/src/cljs/theatralia/thomsky.cljs
 
+(defn attr-inc [db attr]
+  "increment some attribute, or create it - only one entity will be used
+ - kinda weird - just be carefull"
+  (let [[eid val] (first (d/q
+                          '{:find [?e ?v]
+                            :in  [$ ?attr]
+                            :where [[?e ?attr ?v]]}
+                          db attr))]
+    (if eid
+      [{:db/id eid attr (inc val)}]
+      [{:db/id -1  attr 1}])))
+
 
 (defn set-up-datascript!
   "Swaps in a Datascript database with schema ?SCHEMA (default: Datascript
@@ -23,6 +35,8 @@
   the value of the database behind CONN."
   [q conn & q-args]
   (println "bind called" q) ; Commented out on purpose. – See note above.
+  (println "bind called" conn) ; Commented out on purpose. – See note above.
+  (println "bind called" q-args) ; Commented out on purpose. – See note above.
   (let [k (uuid/make-random-uuid)
         res (apply d/q q @conn q-args)
         state (reagent/atom res)]
