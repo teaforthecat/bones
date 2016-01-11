@@ -36,15 +36,15 @@
   [q conn & q-args]
   (println "bind called" q) ; Commented out on purpose. – See note above.
   (println "bind called" conn) ; Commented out on purpose. – See note above.
-  (println "bind called" q-args) ; Commented out on purpose. – See note above.
+  (println "bind called" (rest (first q-args))) ; Commented out on purpose. – See note above.
   (let [k (uuid/make-random-uuid)
-        res (apply d/q q @conn q-args)
+        res (apply d/q q @conn (rest (first q-args)))
         state (reagent/atom res)]
-    ;; (reset! state res)
+    (reset! state res)
     (d/listen! conn k
                (fn [tx-report]
                  (println tx-report)
-                 (let [new-result (apply d/q q (:db-after tx-report) q-args)]
+                 (let [new-result (apply d/q q (:db-after tx-report) (rest (first q-args)))] ;;rest cause re-frame sends registered subscription name
                    (when (not= new-result @state)
                      (reset! state new-result)))))
     (set! (.-__key state) k)
@@ -96,7 +96,8 @@
 (defn register-query [name-query]
   "listen for changes with (subscribe [:x :y :z])"
   (let [[name query ] name-query]
-    (re-frame.core/register-sub name (partial bind query))))
+    (re-frame.core/register-sub name
+                                (partial bind query))))
 
 (defn register-mutation [name-handler]
   "effect the mutation with (dispatch [:x :y :z])"

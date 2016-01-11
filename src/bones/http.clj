@@ -1,6 +1,7 @@
 (ns bones.http
   (:require [bones.kafka :as kafka]
             [bones.jobs :as jobs]
+            [bones.log :as logger]
             [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -62,7 +63,9 @@
                      "Connection"    "keep-alive"}
                     headers)
     :body (ms/transform
-           (map #(format "event: %s \ndata: %s \n\n" event-name %))
+           (map #(format "data: %s \n\n" %))
+           ;; no worky in browser:
+           ;; (map #(format "event: %s \ndata: %s \n\n" event-name %))
            1 ;;buffer size
            (ms/->source source))}))
 
@@ -117,7 +120,7 @@
         ;;setup both token and cookie
         ;;for /api/events EventSource
         (-> (ok {:token token})
-            (update :session merge {:identity user-data})))
+            (update :session merge {:identity {:user user-data}})))
       (bad-request {:message "username or password is invalid"}))))
 
 (defn command-handler [job-topic message req]
@@ -137,17 +140,19 @@
 (defn events-handler [topic req]
   "a connection to the client stays open here"
   (let [user-id (get-in req [:identity :user :id])
+        wat-user-id (or user-id (get-in req [:identity :id]))
         msg-ch (a/chan)
         shutdown-ch (a/chan)]
     (if user-id
-
       ;; FIXME: only support one topic for now?
-      (let [csmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
-        ;; TODO: trigger client reconnect somehow on this interval
-        (a/go (a/<! (a/timeout 60e3)) (a/>! shutdown-ch :shutdown))
-        ;; TODO: add MIME-Type
-        (event-stream topic msg-ch))
-      {:status 401 :body "unauthorized" :headers {}})))
+      (do
+        (log/info "starting kafka consumer")
+        (let [csmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
+          ;; TODO: trigger client reconnect somehow on this interval
+          (a/go (a/<! (a/timeout 60e3)) (a/>! shutdown-ch :shutdown))
+          ;; TODO: add MIME-Type
+          (event-stream topic msg-ch)))
+      {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))
 
 (defmacro make-commands [job-specs]
   (map
@@ -228,9 +233,10 @@
   (s/validate HandlerConf conf)
   (let [{:keys [:bones.http/path :bones/jobs]} conf]
     (all-cors
-     (cookie-session-middleware
-      (wrap-authentication
-       (eval (cqrs path jobs))
-       auth-backend
-       cookie-session-backend)
-      ))))
+     (logger/wrap-with-body-logger
+      (cookie-session-middleware
+       (wrap-authentication
+        (eval (cqrs path jobs))
+        auth-backend
+        cookie-session-backend)
+       )))))

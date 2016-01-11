@@ -10,12 +10,31 @@
           :on-click  #(dispatch [:yes-button-clicked])}
    "Yes"])
 
+(defn message-li [{:keys [:event/message :event/number]}]
+  [:li.row
+   [:div.message message]
+   [:div.number number]
+   ])
+
+(defn messages-received []
+  (let [messages (handlers/subscribe [:event-stream-messages 100])]
+    (fn []
+      ;; not fortunately the query is returning a list of lists
+      (let [res @messages]
+        (into [:ul.messages] (map message-li (flatten res)))))))
+
 ;; for demo only
 (defn click-count []
   (let [cnt (subscribe [:click-count])]
     (fn []
       [:div.count
        [:span @cnt]])))
+
+;; for demo only
+(defn wat-button [special-thing weight-kg]
+  [:div  {:class "button-class"
+          :on-click  #(dispatch [:wat-button-clicked special-thing @weight-kg])}
+   (str "wat " special-thing)])
 
 (defn validator [v-fn]
   "takes a fn that can return true to set the form's :valid? flag and therefore enable the submit button
@@ -87,11 +106,28 @@ or nothing will be done to the form"
           [logout "Logout" form default-form]
           [login "Login" form])))))
 
+(def weight (reagent/atom 17))
+
+(defn weight-form []
+  [:div
+   [:div
+    [:label (str "Weight:  " @weight " kg")]]
+   [:div
+    [:input {:id :weight
+             :type :range
+             :value @weight
+             :on-change #(reset! weight (-> % .-target .-value int))} ]]]
+  )
+
+
 (defn layout []
   [:div.layout
    [login-form]
    [yes-button]
-   [click-count]])
+   [click-count]
+   [weight-form]
+   [wat-button "book" weight]
+   [messages-received]])
 
 (defn main []
   (reagent/render-component layout (.getElementById js/document "app")))

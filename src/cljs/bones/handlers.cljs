@@ -10,6 +10,21 @@
 (def dispatch re-frame.core/dispatch)
 (def subscribe re-frame.core/subscribe)
 
+(defn post [url data]
+  (go
+    (let [resp (<! (http/post url  {:edn-params data}))]
+      resp)))
+
+(comment
+  (take!
+   (post "http://localhost:3000/api/command/userspace.jobs..wat" {:message {:weight-kg 5
+                                                                            :name "gold"}})
+   println
+   true)
+
+  )
+
+
 ;; TODO create multimethod
 (defn submit-form [form-ratom default-form]
   (go
@@ -28,6 +43,17 @@
           (let [message (get-in resp [:body :message] "Something went wrong submitting the form")]
             ;; maybe report field level errors?
             (swap! form-ratom assoc :errors {:message message})))))))
+
+(re-frame.core/register-handler
+ :wat-button-clicked
+ []
+ (fn [app-db [_ special-thing weight-kg]]
+  (take!
+   (post "http://localhost:3000/api/command/userspace.jobs..wat" {:message {:weight-kg weight-kg
+                                                                            :name special-thing}})
+   println
+   true)
+   app-db))
 
 (re-frame.core/register-handler
  :flash
@@ -69,20 +95,34 @@
 (defn inc-click-count [db]
   [[:db.fn/call db/attr-inc :click-count]])
 
-(defn submit-form-tx [db name form]
-  [{:db/id -1 :form/name name}
-   {:db/id -1 :form/submitted true}])
+;; hmm, positional args
+(defn receive-event-stream [db [message msg-number]]
+  [{:db/id -1 :event/message message}
+   {:db/id -1 :event/number msg-number}])
 
 (def reactive-queries
   {:get-login-token '[:find ?token
                       :where [100 :bones/token ?token]]
    :click-count '[:find ?v
-                  :where [?e :click-count ?v]]})
+                  :where [?e :click-count ?v]]
+   :event-stream-messages '{:find [(pull ?e [:event/message :event/number])]
+                            :in [$ ?max]
+                            :where [[?e :event/number ?number]
+                                    [(< ?number ?max)]]
+                            }})
+(comment
+
+  (datascript.core/q (:event-stream-messages reactive-queries)
+                     @re-frame.db/app-db 100)
+
+
+  )
 
 (def mutations
   {:login-token login-token
    :logout-token logout-token
-   :yes-button-clicked inc-click-count})
+   :yes-button-clicked inc-click-count
+   :receive-event-stream receive-event-stream })
 
 (defn setup []
   (mapv db/register-query reactive-queries)
