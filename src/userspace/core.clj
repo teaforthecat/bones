@@ -8,6 +8,15 @@
             [compojure.core :as cj]
             ))
 
+(def users
+  [  {:username "admin"
+      :password "secret"
+      :roles [:admin]}
+   {:username "jerry"
+    :password "jerry"}])
+
+(defn seed []
+  (map bones.http/create-user users))
 
 (def some-jobs
   {:userspace.jobs/wat {:weight-kg s/Num

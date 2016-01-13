@@ -4,7 +4,8 @@
             [userspace.core]))
 
 (defn bootup []
-  (system/start-system userspace.core/sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf))
+  (system/start-system userspace.core/sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+  (userspace.core/seed))
 
 (defn bootdown []
   (system/stop-system userspace.core/sys))

@@ -6,21 +6,22 @@
             ))
 
 
-(defrecord EventSource [stream state url msg-ch listener-loop]
+(defrecord EventSource [state url msg-ch listener-loop]
   component/Lifecycle
   (start [cmp]
-    (if (and (:stream cmp) (= 1 (:state cmp)))
+    (if (:stream cmp) ;; (= 1 (:state cmp))  ;;not sure about this :state thing
       (do
         (println "already started stream")
         cmp)
       (do
+        (println "starting event stream")
         (let [src (js/EventSource. (:url cmp) #js{ :withCredentials true } )]
           (set! (.-onmessage src) (fn [ev]
                                     (js/console.log "onmessage")
                                     (a/put! (:msg-ch cmp) ev.data)))
           (set! (.-onerror src) (fn [ev]
                                   (js/console.log "onerror")
-                                  (js/console.log (.stringify js/JSON ev.data))))
+                                  (js/console.log ev)))
           (set! (.-onopen src) (fn [ev]
                                  (js/console.log "EventSource listening")))
           (-> cmp

@@ -33,7 +33,11 @@
 ;; for demo only
 (defn wat-button [special-thing weight-kg]
   [:div  {:class "button-class"
-          :on-click  #(dispatch [:wat-button-clicked special-thing @weight-kg])}
+          ;; :on-click  #(dispatch [:wat-button-clicked special-thing @weight-kg])}
+          :on-click  #(dispatch [:add-submit-form
+                                 #uuid"9c87fafa-671c-4fdd-b543-306661f051c0"
+                                 "userspace.jobs..wat"
+                                 {:weight-kg @weight-kg :name special-thing}])}
    (str "wat " special-thing)])
 
 (defn validator [v-fn]
@@ -120,8 +124,17 @@ or nothing will be done to the form"
   )
 
 
+(defn connected-status []
+  (let [status (subscribe [:connection-status])]
+    (fn []
+      [:div.connection-status
+       (if @status
+         [:h2.connected "connected"]
+         [:h2.not-connected "not-connected"])])))
+
 (defn layout []
   [:div.layout
+   [connected-status]
    [login-form]
    [yes-button]
    [click-count]

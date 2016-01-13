@@ -1,14 +1,25 @@
 (ns bones.handlers
   (:require-macros [cljs.core.async.macros :refer [go]]
+                   [reagent.ratom :refer [reaction]]
                    [schema.core :as s])
   (:require [bones.db :as db]
             [cljs.core.async :refer [<! take!]]
             [cljs-http.client :as http]
+            [cljs-uuid-utils.core :as uuid]
             [re-frame.core]
             [goog.net.cookies]))
 
 (def dispatch re-frame.core/dispatch)
 (def subscribe re-frame.core/subscribe)
+
+(re-frame.core/register-sub
+ :connection-status
+ (fn [db]
+   (reaction
+    (let [{:keys [:event-source :command-listener ]} @bones.core/sys]
+      ;; connected if both event-stream exists and query-ratom exists
+      (and (:stream event-source)
+           (:listener command-listener))))))
 
 (defn post [url data]
   (go
@@ -39,6 +50,7 @@
           (do
             (dispatch [:login-token token])
             (dispatch [:flash :success "Logged in successfully"])
+            (bones.core/start-system bones.core/sys :event-source :command-listener)
             (reset! form-ratom default-form))
           (let [message (get-in resp [:body :message] "Something went wrong submitting the form")]
             ;; maybe report field level errors?
@@ -54,6 +66,7 @@
    println
    true)
    app-db))
+
 
 (re-frame.core/register-handler
  :flash
@@ -75,6 +88,7 @@
    ;; maybe let the server do it?
    ;; todo choose one or the other
    (.remove goog.net.cookies "bones-session")
+   (bones.core/stop-system bones.core/sys :event-source :command-listener)
    (dispatch [:logout-token])
    (dispatch [:flash :success "Logged out"])
    app-db))
@@ -100,6 +114,23 @@
   [{:db/id -1 :event/message message}
    {:db/id -1 :event/number msg-number}])
 
+(defn update-command [db [id state]]
+  ;; or could query db, then create transaction
+  [{:db/id id :bones.command/state state}])
+
+(def submitted-forms-q
+  '{:find [(pull ?e
+                 [:bones.command/name
+                  :bones.command/message
+                  :bones.command/errors
+                  :bones.command/uuid
+                  :bones.command/state
+                  :db/id
+                  ])]
+    :in [$ ?state]
+    :where [[?e :bones.command/state ?state]]
+    })
+
 (def reactive-queries
   {:get-login-token '[:find ?token
                       :where [100 :bones/token ?token]]
@@ -109,21 +140,56 @@
                             :in [$ ?max]
                             :where [[?e :event/number ?number]
                                     [(< ?number ?max)]]
-                            }})
-(comment
-
-  (datascript.core/q (:event-stream-messages reactive-queries)
-                     @re-frame.db/app-db 100)
-
-
+                            }
+   :command-listener-q command-listener-q
+   :submitted-forms-q submitted-forms-q
+   }
   )
+
+(defn add-submit-form [db [uuid name message]]
+  [{:db/id -1 :bones.command/name name}
+   {:db/id -1 :bones.command/uuid uuid}
+   {:db/id -1 :bones.command/message message}
+   {:db/id -1 :bones.command/state :submitted}])
+
+
+(defn command-listener [eid]
+  (subscribe [:command-lister-q eid]))
 
 (def mutations
   {:login-token login-token
    :logout-token logout-token
    :yes-button-clicked inc-click-count
-   :receive-event-stream receive-event-stream })
+   :receive-event-stream receive-event-stream
+   :add-submit-form add-submit-form
+   :update-command update-command})
 
 (defn setup []
   (mapv db/register-query reactive-queries)
   (mapv db/register-mutation mutations))
+
+(defn new-command-uuid []
+  (uuid/make-random-uuid))
+
+(defn form-submit-listener []
+  ;;TODO somethingid
+  (subscribe [:submitted-forms-q :submitted]))
+
+
+
+(comment
+  (setup)
+  (datascript.core/q (:event-stream-messages reactive-queries)
+                     @re-frame.db/app-db 100)
+
+  (datascript.core/q submitted-forms-q
+                     @re-frame.db/app-db)
+
+
+  (def x-uuid (new-command-uuid))
+  (dispatch [:add-submit-form x-uuid :userspace.jobs/wat {:weight-kg 15 :name "hux"} ])
+
+  @(subscribe [:command-listener-q x-uuid])
+  @(subscribe [:submitted-forms-q :submitted])
+
+  )
