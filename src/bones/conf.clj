@@ -12,7 +12,7 @@
        (map quiet-slurp)
        (reduce merge {})))
 
-;; must return a _this_ record not just any map.
+;; must return a Conf record, not just any map.
 (defrecord Conf [conf-files sticky-keys mappy-keys]
   component/Lifecycle
   (start [cmp]
@@ -24,4 +24,5 @@
        mappy-keys)
       ))
   (stop [cmp]
+    ;; keep the specified sticky keys and the special keys themselves
     (map->Conf (select-keys cmp (conj sticky-keys :sticky-keys :mappy-keys)))))

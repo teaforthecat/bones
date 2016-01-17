@@ -2,6 +2,7 @@
   (:require [bones.system :as system]
             [bones.http :as http]
             [userspace.jobs] ;;must be in classpath
+            [userspace.job-conf :refer [some-jobs]]
             [onyx.plugin.kafka] ;;must be in classpath
             [schema.core :as s]
             [com.stuartsierra.component :as component]
@@ -18,14 +19,6 @@
 (defn seed []
   (map bones.http/create-user users))
 
-(def some-jobs
-  {:userspace.jobs/wat {:weight-kg s/Num
-                        :name s/Str}
-   :userspace.jobs/who {:name s/Str
-                        :role s/Str}
-   :userspace.jobs/where {:name s/Str
-                          :room-number s/Int}}
-  )
 
 
 (def handler (http/build-handler {:bones.http/path "/api"

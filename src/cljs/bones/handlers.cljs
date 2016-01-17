@@ -141,7 +141,7 @@
                             :where [[?e :event/number ?number]
                                     [(< ?number ?max)]]
                             }
-   :command-listener-q command-listener-q
+   ;; :command-listener-q command-listener-q
    :submitted-forms-q submitted-forms-q
    }
   )
@@ -153,8 +153,8 @@
    {:db/id -1 :bones.command/state :submitted}])
 
 
-(defn command-listener [eid]
-  (subscribe [:command-lister-q eid]))
+;; (defn command-listener [eid]
+;;   (subscribe [:command-lister-q eid]))
 
 (def mutations
   {:login-token login-token

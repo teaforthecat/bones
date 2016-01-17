@@ -28,16 +28,17 @@
                  [ring-cors "0.1.7"]
                  ]
 
-  :repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
-  :plugins-repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
-  :mirrors      {"clojars" {:name "tcrawley"
-                             :url "https://clojars-mirror.tcrawley.org/repo/" }}
+  ;; clojars was temporarily down
+  ;; :repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
+  ;; :plugins-repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
+  ;; :mirrors      {"clojars" {:name "tcrawley"
+  ;;                            :url "https://clojars-mirror.tcrawley.org/repo/" }}
   :cljsbuild {
               :builds [ { :id "dev"
                          :source-paths ["src/cljs" "src/"]
                          :figwheel true
                          :compiler {
-                                    :main "bones.core"
+                                    :main "userspace.core"
                                     :asset-path "js/out"
                                     :output-to "resources/public/js/app.js"
                                     :output-dir "resources/public/js/out" } } ]
