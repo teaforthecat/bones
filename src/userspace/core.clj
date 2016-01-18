@@ -2,7 +2,7 @@
   (:require [bones.system :as system]
             [bones.http :as http]
             [userspace.jobs] ;;must be in classpath
-            [userspace.job-conf :refer [some-jobs]]
+            [userspace.jobs-conf :refer [some-jobs]]
             [onyx.plugin.kafka] ;;must be in classpath
             [schema.core :as s]
             [com.stuartsierra.component :as component]

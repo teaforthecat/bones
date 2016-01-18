@@ -6,6 +6,7 @@
             [cljs.core.async :refer [<! take!]]
             [cljs-http.client :as http]
             [cljs-uuid-utils.core :as uuid]
+            [reagent.core :as reagent]
             [re-frame.core]
             [goog.net.cookies]))
 
@@ -44,11 +45,9 @@
                 (http/post "http://localhost:3000/login" {:edn-params
                                                           {:username username
                                                            :password password}}))]
-      (let [success? (= 200 (:status resp))
-            token (get-in resp [:body :token])]
-        (if success?
+      (let [success? (= 200 (:status resp))]
+        (if success? ;;cookie stored
           (do
-            (dispatch [:login-token token])
             (dispatch [:flash :success "Logged in successfully"])
             (bones.core/start-system bones.core/sys :event-source :command-listener)
             (reset! form-ratom default-form))
@@ -77,10 +76,7 @@
    app-db))
 
 (defn logged-in? []
-  ;; todo choose one or the other
-  (or
-   (seq? (subscribe [:get-login-token]))
-   (.containsKey goog.net.cookies "bones-session")))
+  (.containsKey goog.net.cookies "bones-session"))
 
 (re-frame.core/register-handler
  :logout
@@ -118,6 +114,11 @@
   ;; or could query db, then create transaction
   [{:db/id id :bones.command/state state}])
 
+(def ui-q
+  '{:find [(pull ?e [:ui.component/state])]
+    :in [$ ?c-id]
+    :where [[?e :ui.component/id ?c-id]]})
+
 (def submitted-forms-q
   '{:find [(pull ?e
                  [:bones.command/name
@@ -143,6 +144,7 @@
                             }
    ;; :command-listener-q command-listener-q
    :submitted-forms-q submitted-forms-q
+   :ui ui-q
    }
   )
 
@@ -152,6 +154,42 @@
    {:db/id -1 :bones.command/message message}
    {:db/id -1 :bones.command/state :submitted}])
 
+(defn add-errors-form [db [uuid errors]]
+  (let [result (datascript.core/q '{:find [?e]
+                                    :in [$ ?uuid]
+                                    :where [[?e :bones.command/uuid ?uuid]]
+                                    }
+                                  db uuid)
+        ;; todo raise error here instead
+        eid (or (ffirst result) -1)]
+    [{:db/id eid :bones.command/errors errors}
+     {:db/id eid :bones.command/state :error}]))
+
+(defn add-new-form [db [uuid]]
+  [{:db/id -1 :bones.command/uuid uuid}
+   {:db/id -1 :bones.command/state :new}])
+
+(defn new-command-uuid []
+  (uuid/make-random-uuid))
+
+(defn new-form
+  ([]
+  (new-form {}))
+  ([defaults]
+   (let [uuid (uuid/make-random-uuid)
+         tx-res (dispatch [:add-new-form uuid])]
+     (reagent/atom (merge (or defaults {}) {:uuid uuid})))))
+
+
+;; consider unified the q format
+(defn ui [db [component-id state]]
+  (let [result (datascript.core/q '{:find [?e]
+                                    :in [$ ?c-id]
+                                    :where [[?e :ui.component/id ?c-id]]}
+                                  db component-id)
+        eid (or (ffirst result) -1)]
+    [{:db/id eid :ui.component/id component-id}
+     {:db/id eid :ui.component/state state}]))
 
 ;; (defn command-listener [eid]
 ;;   (subscribe [:command-lister-q eid]))
@@ -162,14 +200,15 @@
    :yes-button-clicked inc-click-count
    :receive-event-stream receive-event-stream
    :add-submit-form add-submit-form
-   :update-command update-command})
+   :add-new-form add-new-form ;; hmm, seems to be a pattern here
+   :add-errors-form add-errors-form
+   :update-command update-command
+   :ui ui})
 
 (defn setup []
   (mapv db/register-query reactive-queries)
   (mapv db/register-mutation mutations))
 
-(defn new-command-uuid []
-  (uuid/make-random-uuid))
 
 (defn form-submit-listener []
   ;;TODO somethingid
@@ -178,13 +217,16 @@
 
 
 (comment
-  (setup)
+  ;;(setup) ;;timeout
   (datascript.core/q (:event-stream-messages reactive-queries)
                      @re-frame.db/app-db 100)
+  ;;(db/register-mutation [:ui ui])
 
-  (datascript.core/q submitted-forms-q
-                     @re-frame.db/app-db)
+  (datascript.core/q ui-q
+                     @re-frame.db/app-db
+                     :userspace.jobs/who)
 
+  (ui @re-frame.db/app-db [:userspace.jobs/who :show])
 
   (def x-uuid (new-command-uuid))
   (dispatch [:add-submit-form x-uuid :userspace.jobs/wat {:weight-kg 15 :name "hux"} ])

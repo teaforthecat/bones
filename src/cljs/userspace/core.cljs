@@ -1,5 +1,5 @@
 (ns userspace.core
-  (:require [userspace.job-conf :refer [some-jobs]]
+  (:require [userspace.jobs-conf :refer [some-jobs]]
             [userspace.html :as html]
             [bones.core :as bones]))
 
