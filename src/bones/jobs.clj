@@ -109,3 +109,28 @@
 
 (defn build-jobs [conf jobs]
   (mapv (partial build-configured-job conf) jobs))
+
+(defmacro namespaced-symbol [name]
+  `(keyword (str *ns*) (str (quote ~name))))
+
+(defn job-middleware [job-sym job-fn]
+  "wraps input and output of function in an appropriate message for onyx-kafka"
+  (fn [segment]
+    (let [kafka-key (:_kafka-key segment)
+          uuid (:uuid segment)
+          incoming-message (:message segment)
+          ;; this is the fn call
+          output (job-fn incoming-message)
+          output-message {:job-sym job-sym :uuid uuid :output output :input incoming-message}
+          ]
+      ;; kafka partition should be based on key
+      {:message output-message
+       :key kafka-key})))
+
+(defmacro defjob [name signature & form]
+  `(def ~name
+     (job-middleware (namespaced-symbol ~name)
+      (fn ~signature
+        ~@form
+        )
+      )))

@@ -15,7 +15,7 @@
 
     (if name ;;fixme: weird nil bug
       (let [result (http/post (str "http://localhost:3000/api/command/" name)
-                                  {:message message})
+                                  {:message message :uuid uuid})
             success (> 299 (:status result)) ]
         (handlers/dispatch [:update-command id (if success :received :error-sending)])))
     ))

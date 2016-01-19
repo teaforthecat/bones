@@ -13,17 +13,29 @@
           :on-click  #(dispatch [:yes-button-clicked])}
    "Yes"])
 
-(defn message-li [{:keys [:event/message :event/number]}]
+(defn message-li [{:keys [:event/uuid :event/input :event/output :event/job-sym :event/number]}]
   [:li.row
-   [:div.message message]
-   [:div.number number]
+   [:div.input (str "input: " input)][:br]
+   [:div.output (str "output: " output)][:br]
+   [:div.number (str "job-sym: " job-sym)][:br]
+   [:div.number (str "number: " number)][:br]
+   [:div.uuid (str "uuid: " uuid)][:br]
    ])
 
 (defn messages-received []
-  (let [messages (handlers/subscribe [:event-stream-messages 100])]
+  (let [messages (handlers/subscribe [:event-stream-messages-q 100])]
     (fn []
-      ;; not fortunately the query is returning a list of lists
       (let [res @messages]
+        ;; this is the incoming event processor (?wat?)
+        ;; ((list of lists))
+        (let [{:keys [:event/uuid :event/input :event/output :event/job-sym :event/number] :as message} (last (last res))]
+          (if message
+            (do
+              (dispatch [:add-processed-form uuid input output job-sym])
+              ;; this will close the form
+              (dispatch [:ui job-sym :processed]))
+            )
+          )
         (into [:ul.messages] (map message-li (flatten res)))))))
 
 ;; for demo only
@@ -33,40 +45,9 @@
       [:div.count
        [:span @cnt]])))
 
-;; for demo only
-(defn wat-button [special-thing weight-kg]
-  [:div  {:class "button-class"
-          ;; :on-click  #(dispatch [:wat-button-clicked special-thing @weight-kg])}
-          :on-click  #(dispatch [:add-submit-form
-                                 #uuid"9c87fafa-671c-4fdd-b543-306661f051c0"
-                                 "userspace.jobs..wat"
-                                 {:weight-kg @weight-kg :name special-thing}])}
-   (str "wat " special-thing)])
 
-(def weight (reagent/atom 17))
-
-(defn weight-form []
-  [:div
-   [:div
-    [:label (str "Weight:  " @weight " kg")]]
-   [:div
-    [:input {:id :weight
-             :type :range
-             :value @weight
-             :on-change #(reset! weight (-> % .-target .-value int))} ]]]
-  )
-
-
-;; (defn connected-status []
-;;   (let [status (subscribe [:connection-status])]
-;;     (fn []
-;;       [:div.connection-status
-;;        (if @status
-;;          [:h2.connected "connected"]
-;;          [:h2.not-connected "not-connected"])])))
-
-;; careful, copied from bones.jobs/
-(defn sym-to-topic [^clojure.lang.Keyword job-sym]
+;; copied from bones.jobs.clj
+(defn sym-to-topic [job-sym]
   (-> (str job-sym)
       (clojure.string/replace "/" "..") ;; / is illegal in kafka topic name
       (subs 1))) ;; remove leading colon
@@ -78,10 +59,6 @@
           message (select-keys @form (keys (command some-jobs)))
           errors (s/check (command some-jobs) message)
           command-path (sym-to-topic command)]
-      (println message)
-      (println (type (:weight-kg message)))
-      (println (type (:weight-kg @form)))
-      (println errors)
       (if errors
         (dispatch [:add-errors-form uuid errors])
         (dispatch [:add-submit-form uuid command-path message])))))
@@ -115,9 +92,13 @@
 (defn toggled-form [ui-q form non-form]
   (let [activation (subscribe ui-q)]
     (fn []
-      (if (= :show (:ui.component/state (ffirst @activation)))
-        form
-        non-form))))
+      ;; query returns a list of lists
+      (let [{:keys [:ui.component/state]} (ffirst @activation)]
+        [:div.ui
+         [:div.debug (str state)]
+         (if (= :show state)
+           form
+           non-form)]))))
 
 (defn layout []
   [:div.layout
@@ -125,9 +106,7 @@
    [bones/login-form]
    [yes-button]
    [click-count]
-   [weight-form]
-   [wat-button "book" weight]
-   [toggled-form [:ui :userspace.jobs/wat]
+   [toggled-form [:ui-q :userspace.jobs/wat]
     [form-for :userspace.jobs/wat {:weight-kg {:aria "Must be a Number"}} {:weight-kg 0}]
     [:button {:on-click #(dispatch [:ui :userspace.jobs/wat :show])} "Add wat" ]]
    [messages-received]])

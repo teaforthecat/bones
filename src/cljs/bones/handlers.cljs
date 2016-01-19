@@ -107,8 +107,14 @@
 
 ;; hmm, positional args
 (defn receive-event-stream [db [message msg-number]]
-  [{:db/id -1 :event/message message}
-   {:db/id -1 :event/number msg-number}])
+  (let [{:keys [:uuid :input :output :job-sym]} message]
+    [{:db/id -1 :event/message message}
+     {:db/id -1 :event/uuid uuid}
+     {:db/id -1 :event/input input}
+     {:db/id -1 :event/output output}
+     {:db/id -1 :event/job-sym job-sym}
+     {:db/id -1 :event/number msg-number}
+     ]))
 
 (defn update-command [db [id state]]
   ;; or could query db, then create transaction
@@ -132,19 +138,22 @@
     :where [[?e :bones.command/state ?state]]
     })
 
+(def event-stream-messages-q
+  '{:find [(pull ?e [:event/uuid :event/input :event/output :event/job-sym :event/number])]
+    :in [$ ?max]
+    :where [[?e :event/number ?number]
+            [(< ?number ?max)]]
+    })
+
 (def reactive-queries
   {:get-login-token '[:find ?token
                       :where [100 :bones/token ?token]]
    :click-count '[:find ?v
                   :where [?e :click-count ?v]]
-   :event-stream-messages '{:find [(pull ?e [:event/message :event/number])]
-                            :in [$ ?max]
-                            :where [[?e :event/number ?number]
-                                    [(< ?number ?max)]]
-                            }
+   :event-stream-messages-q event-stream-messages-q
    ;; :command-listener-q command-listener-q
    :submitted-forms-q submitted-forms-q
-   :ui ui-q
+   :ui-q ui-q
    }
   )
 
@@ -164,6 +173,20 @@
         eid (or (ffirst result) -1)]
     [{:db/id eid :bones.command/errors errors}
      {:db/id eid :bones.command/state :error}]))
+
+(defn add-processed-form [db [uuid input output job-sym]]
+  (let [result (datascript.core/q '{:find [?e]
+                                    :in [$ ?uuid]
+                                    :where [[?e :bones.command/uuid ?uuid]]
+                                    }
+                                  db uuid)
+        ;; todo raise error here instead
+        eid (or (ffirst result) -1)]
+    [{:db/id eid :bones.command/state :processed}
+     {:db/id eid :bones.command/input input}
+     {:db/id eid :bones.command/output output}
+     ;; {:db/id eid :bones.command/name job-sym} ;;shouldn't change
+     ]))
 
 (defn add-new-form [db [uuid]]
   [{:db/id -1 :bones.command/uuid uuid}
@@ -202,6 +225,7 @@
    :add-submit-form add-submit-form
    :add-new-form add-new-form ;; hmm, seems to be a pattern here
    :add-errors-form add-errors-form
+   :add-processed-form add-processed-form
    :update-command update-command
    :ui ui})
 
@@ -209,16 +233,14 @@
   (mapv db/register-query reactive-queries)
   (mapv db/register-mutation mutations))
 
-
 (defn form-submit-listener []
   ;;TODO somethingid
   (subscribe [:submitted-forms-q :submitted]))
 
 
-
 (comment
   ;;(setup) ;;timeout
-  (datascript.core/q (:event-stream-messages reactive-queries)
+  (datascript.core/q (:event-stream-messages-q reactive-queries)
                      @re-frame.db/app-db 100)
   ;;(db/register-mutation [:ui ui])
 

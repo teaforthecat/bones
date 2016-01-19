@@ -128,8 +128,11 @@
         job-fn (jobs/topic-to-sym job-topic);; this is a funny dance
         input-topic (jobs/topic-name-input job-fn)
         output-topic (jobs/topic-name-output job-fn)
-        message (merge message {:_kafka-key user-id}) ;; store auth key for output topic
-        kafka-response @(kafka/produce input-topic user-id message)]
+        message-uuid (get-in req [:params :uuid])
+        meta-data (merge (select-keys (:params req) [:uuid]) {:_kafka-key user-id})
+        ;; store auth key for output topic
+        data (merge {:message message} meta-data)
+        kafka-response @(kafka/produce input-topic user-id data)]
     (if (:topic kafka-response) ;; block for submitting to kafka
       (ok kafka-response) ;; return result of produce
       (service-unavailable "command has not been received"))))
@@ -149,10 +152,13 @@
         (log/info "starting kafka consumer")
         (let [csmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
           ;; TODO: trigger client reconnect somehow on this interval
+          ;; a user can re-connect, and then the other non-connected consumer will keep consuming
           (a/go (a/<! (a/timeout 60e3)) (a/>! shutdown-ch :shutdown))
           ;; TODO: add MIME-Type
           (event-stream topic msg-ch)))
       {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))
+
+(def optional-uuid (s/maybe s/Uuid))
 
 (defmacro make-commands [job-specs]
   (map
@@ -160,7 +166,7 @@
      (let [[job-fn spec] job-spec
            job-topic (bones.jobs/sym-to-topic job-fn)]
        `(POST* ~(str "/command/" job-topic) {:as ~'req}
-               :body-params [~'message :- ~spec]
+               :body-params [~'message :- ~spec {~'uuid :- optional-uuid nil}]
                :header-params [{~'AUTHORIZATION "Token: xyz"}]
                (if (~'buddy.auth/authenticated? ~'req)
                  (command-handler ~job-topic ~'message ~'req)

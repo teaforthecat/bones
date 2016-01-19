@@ -24,8 +24,7 @@
 (defn incoming-message-listener [msg-ch]
   (go-loop [n 0]
     (let [msg (<! msg-ch)]
-      (handlers/dispatch [:receive-event-stream msg n])
-      )
+      (handlers/dispatch [:receive-event-stream msg n]))
     (recur (inc n))))
 
 (defn start-system [sistem & components]
@@ -67,7 +66,7 @@
 
 (comment
   ;; creat message in db with :event/message  "hello world" :event/number 1
-  (handlers/dispatch [:receive-event-stream "hello world" 1])
+  (handlers/dispatch [:receive-event-stream {:input :input :output :output :job-sym :job-sym :uuid :uuid} 1])
 
   ;; get current result of query - all :event/messages with :event/numeber less than 100
   @(handlers/subscribe [:event-stream-messages 100])

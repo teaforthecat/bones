@@ -18,7 +18,9 @@
         (let [src (js/EventSource. (:url cmp) #js{ :withCredentials true } )]
           (set! (.-onmessage src) (fn [ev]
                                     (js/console.log "onmessage")
-                                    (a/put! (:msg-ch cmp) ev.data)))
+                                    (a/put! (:msg-ch cmp)
+                                            ;; TODO transit?
+                                            (cljs.reader/read-string ev.data))))
           (set! (.-onerror src) (fn [ev]
                                   (js/console.log "onerror")
                                   (js/console.log ev)))
@@ -50,4 +52,6 @@
   (component/start es)
   (:stream es)
   (component/stop es)
+
+  (a/take! msg-ch println true)
   )

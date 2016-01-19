@@ -1,5 +1,6 @@
 (ns bones.kafka
   (:require [bones.serializer :refer [serialize deserialize]]
+            [taoensso.timbre :as log]
             [clojure.core.async :as a]
             [byte-streams :as bs]
             [clj-kafka.core :refer [with-resource]]
@@ -11,6 +12,8 @@
 ; TODO move producer to system so we don't call .close on it everytime
 ; returns a future
 (defn produce [topic key data]
+  (log/info "sending " topic "to kafka")
+  (log/info data)
   (let [bytes (serialize data)
         key-bytes (.getBytes (str key))
         record (nkp/record topic key-bytes bytes)
@@ -35,7 +38,10 @@
       (try
         (doseq [m (zkc/messages cnsmr topic)]
           (if (authorized? m (str group-id))
-            (a/>! chan (deserialize (:value m)))))
+            (do
+              (log/info "receiving " topic "from kafka")
+
+              (a/>! chan (deserialize (:value m))))))
        (finally
          (zkc/shutdown cnsmr) ;; incase of errors(?)
                 )))))

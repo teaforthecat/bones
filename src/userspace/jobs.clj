@@ -1,28 +1,26 @@
-(ns userspace.jobs)
+(ns userspace.jobs
+  (:require [taoensso.timbre :as log]
+            [bones.jobs :refer [defjob]]))
 
-(defn wat [segment]
-  (let [kafka-key (:_kafka-key segment)]
-    (-> segment
-        (dissoc :_kafka-key)
-        (assoc :key kafka-key)
-        (assoc-in [:message :processed] true)
-        (assoc-in [:message :input] segment)
-        (assoc-in [:message :output] {:a "a hammer"}))))
+(defjob wat [message]
+  (log/info "wat message: " message)
+  {:a "a hammer"})
 
-(defn who [segment]
-  (let [kafka-key (:_kafka-key segment)]
-    (-> segment
-        (dissoc :_kafka-key)
-        (assoc :key kafka-key)
-        (assoc-in [:message :processed] true)
-        (assoc-in [:message :input] segment)
-        (assoc-in [:message :output] {:b "Mr. Charles"}))))
+(defjob who [message]
+  (log/info "who message: " message)
+  {:b "Mr. Charles"})
 
-(defn where [segment]
-  (let [kafka-key (:_kafka-key segment)]
-    (-> segment
-        (dissoc :_kafka-key)
-        (assoc :key kafka-key)
-        (assoc-in [:message :processed] true)
-        (assoc-in [:message :input] segment)
-        (assoc-in [:message :output] {:c "The Kitchen"}))))
+(defjob where [message]
+  (log/info "where message: " message)
+  {:c "The Kitchen"})
+
+
+(comment
+
+
+  (wat {:message {:weight-kg 31, :name "aoeu"}
+        :uuid #uuid "331d2a6e-8eae-4d1f-a9a1-0511ba26aefa",
+        :_kafka-key 2})
+  ;;=> {:message {:uuid #uuid "331d2a6e-8eae-4d1f-a9a1-0511ba26aefa", :output {:a "a hammer"}}, :key 2}
+
+)
