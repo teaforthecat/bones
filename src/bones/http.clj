@@ -151,9 +151,12 @@
       (do
         (log/info "starting kafka consumer")
         (let [csmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
-          ;; TODO: trigger client reconnect somehow on this interval
-          ;; a user can re-connect, and then the other non-connected consumer will keep consuming
-          (a/go (a/<! (a/timeout 60e3)) (a/>! shutdown-ch :shutdown))
+          ;; if the csmr receives a message between the time the user closes a connection
+          ;; and this timeout fires, the user will never get the message
+          ;; todo: make this a configurable value, 1 minute is just a guess at a reasonable lifespan
+          (a/go (a/<! (a/timeout 60e3))
+                (a/>! msg-ch :reconnect)
+                (a/>! shutdown-ch :shutdown))
           ;; TODO: add MIME-Type
           (event-stream topic msg-ch)))
       {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))

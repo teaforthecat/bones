@@ -18,9 +18,13 @@
         (let [src (js/EventSource. (:url cmp) #js{ :withCredentials true } )]
           (set! (.-onmessage src) (fn [ev]
                                     (js/console.log "onmessage")
-                                    (a/put! (:msg-ch cmp)
-                                            ;; TODO transit?
-                                            (cljs.reader/read-string ev.data))))
+                                    (let [msg (cljs.reader/read-string ev.data)]
+                                      (if (= msg :reconnect)
+                                        (do
+                                          (component/stop cmp)
+                                          (component/start cmp))
+                                        ;; TODO transit?
+                                        (a/put! (:msg-ch cmp) msg)))))
           (set! (.-onerror src) (fn [ev]
                                   (js/console.log "onerror")
                                   (js/console.log ev)))
