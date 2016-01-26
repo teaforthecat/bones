@@ -3,6 +3,8 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  ;; remove once merged: https://github.com/ztellman/automat/pull/31
+   :git-dependencies [["https://github.com/achengs/automat.git" "cljc"]]
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/test.check "0.9.0"]
                  [org.danielsz/system "0.2.0"]
@@ -26,7 +28,10 @@
                  [bidi "1.25.0"]
                  [cljs-http "0.1.39"]
                  [ring-cors "0.1.7"]
+                 ;; add once merged: https://github.com/ztellman/automat/pull/31
+                 ;; [automat "0.1.3"]
                  ]
+
 
   ;; clojars was temporarily down
   ;; :repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
@@ -48,7 +53,9 @@
   :profiles  {:dev
               {:dependencies [[figwheel-sidecar "0.5.0-2"]
                               [com.cemerick/piggieback "0.2.1"] ]
-               :source-paths ["src" "src/cljs" "dev"] }}
+               :source-paths ["src" "src/cljs" "dev"
+                              ;; remove once merged: https://github.com/ztellman/automat/pull/31
+                               ".lein-git-deps/automat/src/"] }}
 
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
   ;; in ~/.lein/profiles.clj:

@@ -5,6 +5,7 @@
             [bones.handlers :as handlers]
             [schema.core :as s]
             [bones.re-frame.html :as bones]
+            [bones.forms]
             [re-frame.core :refer [subscribe dispatch]]))
 
 ;; for demo only
@@ -67,7 +68,7 @@
   ([command error_messages]
    (form-for command error_messages {}))
   ([command error_messages defaults]
-   (let [form (handlers/new-form defaults)
+   (let [form (handlers/command-form command defaults)
          validator (bones/form-validator (command some-jobs) error_messages)
          cancel-fn #(dispatch [:ui command :hide])
          reset-form #(reset! form (handlers/new-form defaults))
@@ -87,7 +88,6 @@
          ]
         form]))))
 
-;; todo: send the uuid around the world
 
 (defn toggled-form [ui-q form non-form]
   (let [activation (subscribe ui-q)]
@@ -100,6 +100,52 @@
            form
            non-form)]))))
 
+(defn display-button [label action]
+  [:button {:on-click action} label])
+
+(defn display-form [fields errors submit-fn cancel-fn]
+  (let [validation (fn [id value doc]
+                     (println doc)
+                     doc)]
+    (fn [fields errors submit-fn cancel-fn]
+      (let []
+        [bind-fields
+         [:div.fieldset
+          [:label {:for :name} "Name:"]
+          [:span.field_container {:field :container
+                                  :valid? #(if (get-in @fields [:errors :name]) "field_with_errors" "")}
+           [:span.errors {:id :errors.name :field :label}]
+           [:input {:id :name :field :text}]]
+
+          [:label {:for :role} "Role:"]
+          [:span.field_container {:field :container
+                                  :valid? #(if (get-in @fields [:errors :role]) "field_with_errors" "")}
+           [:span.errors {:id :errors.role :field :label}]
+           [:input {:id :role :field :text}]]
+
+          [display-button "Cancel" cancel-fn]
+          [display-button "Submit" #(submit-fn @fields)]
+          ]
+         fields
+         validation]))))
+
+(defn who-form []
+  (let [form (bones.forms/new-form {:defaults {:role "user"}})]
+    (fn []
+      (let [current-state @form
+            {:keys [:defaults
+                    :fields
+                    :errors
+                    :submit-fn
+                    :cancel-fn
+                    :new-fn]} current-state
+            state (get-in current-state [:fsm :value :state])]
+        (if (some #{state} #{:hidden :cancel})
+          [display-button "Add Who" new-fn]
+          [display-form fields errors submit-fn cancel-fn])
+        ))
+    ))
+
 (defn layout []
   [:div.layout
    [bones/connected-status]
@@ -109,6 +155,7 @@
    [toggled-form [:ui-q :userspace.jobs/wat]
     [form-for :userspace.jobs/wat {:weight-kg {:aria "Must be a Number"}} {:weight-kg 0}]
     [:button {:on-click #(dispatch [:ui :userspace.jobs/wat :show])} "Add wat" ]]
+   [who-form]
    [messages-received]])
 
 (defn main []
