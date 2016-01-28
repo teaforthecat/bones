@@ -131,6 +131,7 @@
                   :bones.command/message
                   :bones.command/errors
                   :bones.command/uuid
+                  :bones.command/url
                   :bones.command/state
                   :db/id
                   ])]
@@ -157,8 +158,16 @@
    }
   )
 
-(defn add-submit-form [db [uuid name message]]
+(defn submit-form-tx [db [name uuid url message]]
   [{:db/id -1 :bones.command/name name}
+   {:db/id -1 :bones.command/url url}
+   {:db/id -1 :bones.command/uuid uuid}
+   {:db/id -1 :bones.command/message message}
+   {:db/id -1 :bones.command/state :submitted}])
+
+(defn add-submit-form [db [command uuid url message]]
+  [{:db/id -1 :bones.command/name command}
+   {:db/id -1 :bones.command/url url}
    {:db/id -1 :bones.command/uuid uuid}
    {:db/id -1 :bones.command/message message}
    {:db/id -1 :bones.command/state :submitted}])
@@ -203,6 +212,27 @@
          tx-res (dispatch [:add-new-form uuid])]
      (reagent/atom (merge (or defaults {}) {:uuid uuid})))))
 
+(defn command-form
+  ([command]
+  (command-form command {}))
+  ([command defaults]
+   (let [uuid (uuid/make-random-uuid)
+         tx-res (dispatch [:add-new-form uuid])
+         form (reagent/atom (merge (or defaults {}) {:uuid uuid}))]
+     ;; {:lifecycle {
+
+     ;;              ;;hmmmmmmmmm [{:keys [:ui.component/state]} (ffirst @activation)]
+     ;;              :cancel #(do (dispatch [:ui uuid :hide])
+     ;;                           ;;mmm
+     ;;                           (reset! form (new-form defaults)))
+     ;;              ;; :validate (bones/form-validator (command some-jobs) error_messages)
+     ;;              ;; :submit (bones.forms/submit-function form command)
+     ;;              }
+     ;;  :form form
+     ;;  }
+     form))
+ )
+
 
 ;; consider unified the q format
 (defn ui [db [component-id state]]
@@ -222,6 +252,7 @@
    :logout-token logout-token
    :yes-button-clicked inc-click-count
    :receive-event-stream receive-event-stream
+   :submit-form-tx submit-form-tx
    :add-submit-form add-submit-form
    :add-new-form add-new-form ;; hmm, seems to be a pattern here
    :add-errors-form add-errors-form

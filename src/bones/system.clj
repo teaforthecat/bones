@@ -124,17 +124,19 @@
   (start [cmp]
     (s/validate HttpConf conf)
     (if (:server cmp)
-      (println "server is running on port: " (:port cmp))
+      (do
+        (println "server is running on port: " (:port cmp))
+        cmp)
       (let [{:keys [:http/handler :http/port]} conf
             server (start-server handler {:port port})]
         (-> cmp
          (assoc :server server)
          ;; in case port is nil, get real port
          (assoc :port (aleph.netty/port server))))))
-  (stop [cmp]
+  (stop [cmp] ;; todo add force option
     (if-let [server (:server cmp)]
       (do
-        (.close server)
+        (.close server) ;; this will hang if connections exist
         (dissoc cmp :server))
       cmp)))
 

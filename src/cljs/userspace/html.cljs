@@ -129,8 +129,12 @@
          fields
          validation]))))
 
+(def who-url (str "http://localhost:3000/api/commands/userspace.jobs..wat"))
+
 (defn who-form []
-  (let [form (bones.forms/new-form {:defaults {:role "user"}})]
+  (let [form (bones.forms/new-form {:defaults {:role "user"}
+                                    :url who-url
+                                    :command :userspace.jobs/who})]
     (fn []
       (let [current-state @form
             {:keys [:defaults

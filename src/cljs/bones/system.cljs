@@ -9,12 +9,12 @@
 (defn command-dispatcher [ky atm old new]
   (let [{:keys [:bones.command/message
                 :bones.command/uuid
+                :bones.command/url ;; FIXME one or the other
                 :db/id
                 :bones.command/name]
          :as command-to-post} (ffirst new)]
-
     (if name ;;fixme: weird nil bug
-      (let [result (http/post (str "http://localhost:3000/api/command/" name)
+      (let [result (http/post (or url (str "http://localhost:3000/api/command/" name))
                                   {:message message :uuid uuid})
             success (> 299 (:status result)) ]
         (handlers/dispatch [:update-command id (if success :received :error-sending)])))
