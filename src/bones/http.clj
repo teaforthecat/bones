@@ -29,6 +29,8 @@
             [datascript.core :as ds]
             [byte-streams :as bs]))
 
+(def example-uuid (java.util.UUID/randomUUID))
+
 (def some-jobs
   {:bones.core/wat {:weight-kg s/Num
                     :name s/Str}
@@ -128,7 +130,7 @@
         job-fn (jobs/topic-to-sym job-topic);; this is a funny dance
         input-topic (jobs/topic-name-input job-fn)
         output-topic (jobs/topic-name-output job-fn)
-        message-uuid (get-in req [:params :uuid])
+        ;; uuid is optional :_kafka-key is not
         meta-data (merge (select-keys (:params req) [:uuid]) {:_kafka-key user-id})
         ;; store auth key for output topic
         data (merge {:message message} meta-data)
@@ -161,7 +163,6 @@
           (event-stream topic msg-ch)))
       {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))
 
-(def optional-uuid (s/maybe s/Uuid))
 
 (defmacro make-commands [job-specs]
   (map
@@ -169,7 +170,7 @@
      (let [[job-fn spec] job-spec
            job-topic (bones.jobs/sym-to-topic job-fn)]
        `(POST* ~(str "/command/" job-topic) {:as ~'req}
-               :body-params [~'message :- ~spec {~'uuid :- optional-uuid nil}]
+               :body-params [~'message :- ~spec {~'uuid :- s/Uuid example-uuid}] ;; support "no nils"  in swagger-ui
                :header-params [{~'AUTHORIZATION "Token: xyz"}]
                (if (~'buddy.auth/authenticated? ~'req)
                  (command-handler ~job-topic ~'message ~'req)

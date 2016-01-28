@@ -10,3 +10,6 @@ pom.xml.asc
 .hgignore
 .hg/
 resources/public/js/*
+/.repl/
+/figwheel_server.log
+/onyx.log
