@@ -129,7 +129,7 @@
          fields
          validation]))))
 
-(def who-url (str "http://localhost:3000/api/commands/userspace.jobs..wat"))
+(def who-url (str "http://localhost:3000/api/command/userspace.jobs..who"))
 
 (defn who-form []
   (let [form (bones.forms/new-form {:defaults {:role "user"}
@@ -144,9 +144,11 @@
                     :cancel-fn
                     :new-fn]} current-state
             state (get-in current-state [:fsm :value :state])]
-        (if (some #{state} #{:hidden :cancel})
-          [display-button "Add Who" new-fn]
-          [display-form fields errors submit-fn cancel-fn])
+        [:div
+         [:div.debug (str "state: " state)]
+         (if (some #{state} #{:hidden :cancel})
+           [display-button "Add Who" new-fn]
+           [display-form fields errors submit-fn cancel-fn])]
         ))
     ))
 

@@ -139,6 +139,20 @@
     :where [[?e :bones.command/state ?state]]
     })
 
+;; TODO use record here
+(def form-state-q
+  '{:find [(pull ?e
+                 [:bones.command/name
+                  :bones.command/url
+                  :bones.command/uuid
+                  :bones.command/message
+                  :bones.command/state
+                  :db/id ;;choose one id or uuid
+                  ])]
+    :in [$ ?uuid]
+    :where [[?e :bones.command/uuid ?uuid]]
+    }  )
+
 (def event-stream-messages-q
   '{:find [(pull ?e [:event/uuid :event/input :event/output :event/job-sym :event/number])]
     :in [$ ?max]
@@ -155,9 +169,11 @@
    ;; :command-listener-q command-listener-q
    :submitted-forms-q submitted-forms-q
    :ui-q ui-q
+   :form-state-q form-state-q
    }
   )
 
+;; TODO use record here
 (defn submit-form-tx [db [name uuid url message]]
   [{:db/id -1 :bones.command/name name}
    {:db/id -1 :bones.command/url url}
