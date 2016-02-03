@@ -9,12 +9,17 @@
                     [:hidden (a/$ :hidden) :new (a/$ :new)
                      (a/or [:submitted (a/$ :submitted)] [:cancel (a/$ :cancel)])
                      (a/or [:waiting (a/$ :waiting)]     [:cancel (a/$ :cancel)])
-                     (a/or [:received (a/$ :received)]   [:cancel (a/$ :cancel)] [:error-sending (a/$ :error-sending)])
+                     (a/or [:received (a/$ :received)]
+                           [:cancel (a/$ :cancel)]
+                           [:error-sending (a/$ :error-sending)])
+                     (a/or [:waiting (a/$ :waiting)]
+                           [:processed (a/$ :processed)]
+                           [:cancel (a/$ :cancel)])
                      (a/or [:waiting (a/$ :waiting)]     [:cancel (a/$ :cancel)])
-                     (a/or [:processed (a/$ :processed)] [:cancel (a/$ :cancel)])
                      (a/$ :hidden)]))
 
 ;; todo use a multi-method instead
+;; todo generalize (:action input)
 (def actions
   {:reducers {:hidden (fn [cur input]
                         (println cur input)
@@ -23,10 +28,7 @@
                      (println cur input )
                      (let [uuid (uuid/make-random-uuid)
                            response-reaction (subscribe [:form-state-q uuid])]
-                       ;; todo tear down somehow
-                       ;; (add-watch response-reaction :form-update
-                       ;;            #())
-
+                       ;; todo tear down watcher somehow (?)
                        (-> cur
                            (assoc :uuid uuid)
                            (assoc :response-reaction response-reaction)
@@ -41,14 +43,18 @@
               :cancel  (fn [cur input]
                          (println cur input )
                          ;; it is important that it doesn't matter which goes first
-                         ;; this cancel action or :hidden
-                         ;;(assoc cur :state (:action input))
+                         ;;   - this cancel action or :hidden
+                         ;; will be reset on :new
                          (assoc cur :state (:action input))
                          )
               :error-sending (fn [cur input] (println cur input ) (assoc cur :state "error-sending"))
               :waiting  (fn [cur input] (println cur input ) (assoc cur :state "waiting"))
               :received  (fn [cur input] (println cur input ) (assoc cur :state "received"))
-              :processed  (fn [cur input] (println cur input ) (assoc cur :state "processed"))
+              :processed  (fn [cur input]
+                            (println cur input )
+                            (dispatch [:flash :success (:command cur)])
+                            ;; will be reset on :new
+                            (assoc cur :state (:action input)))
               }
    :signal :action })
 
@@ -78,7 +84,7 @@
                                                 :response-dispatcher
                                                 (fn [ky atm old new]
                                                   (let [{:keys [:bones.command/state]} (ffirst new)]
-                                                    (if (some #{state} #{:waiting :received :error-sending})
+                                                    (if (some #{state} #{:waiting :received :error-sending :processed})
                                                       ;; only advance based on dispatches from CommandListener
                                                       (swap! form update :fsm advance {:action state})))))
                                      )

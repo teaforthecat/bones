@@ -87,15 +87,20 @@
         (log/info "Starting Jobs")
         (let [job-specs (:bones/jobs conf)
               ;; assume zookeeper is already started
-              pconf (assoc conf :zookeeper/server? false)]
+              pconf (assoc conf :zookeeper/server? false)
+              jobs (bones.jobs/build-jobs pconf (keys job-specs))]
           (doseq [[job spec] job-specs]
             ;; create topics required by onyx.kafka plugin to exist
             (bones.kafka/produce (bones.jobs/topic-name-input job) "init" {:segment "init"})
-            (bones.kafka/produce (bones.jobs/topic-name-output job) "init" {:segment "init"}))
-          (assoc cmp :submitted-jobs
-                 (->> (keys job-specs)
-                      (bones.jobs/build-jobs pconf)
-                      (mapv (partial onyx.api/submit-job pconf))))))
+            (bones.kafka/produce (bones.jobs/topic-name-output job) "init" {:segment "init"})
+            ;; this one is for the browser
+            ;; this only needs to be done once per namespace, but more than once doesn't hurt
+            (bones.kafka/produce (bones.jobs/general-output job) "init" {:segment "init"}))
+          (-> cmp
+              (assoc :job-specs job-specs)
+              (assoc :jobs jobs)
+              (assoc :pconf pconf)
+              (assoc :submitted-jobs (mapv (partial onyx.api/submit-job pconf) jobs)))))
       (do
         (log/info "Jobs have already been submitted")
         cmp)))

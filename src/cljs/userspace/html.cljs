@@ -146,7 +146,7 @@
             state (get-in current-state [:fsm :value :state])]
         [:div
          [:div.debug (str "state: " state)]
-         (if (some #{state} #{:hidden :cancel})
+         (if (some #{state} #{:hidden :cancel :processed})
            [display-button "Add Who" new-fn]
            [display-form fields errors submit-fn cancel-fn])]
         ))

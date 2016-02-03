@@ -10,17 +10,17 @@
   (let [{:keys [:bones.command/message
                 :bones.command/uuid
                 :bones.command/url ;; FIXME one or the other
-                :db/id
+                ;; :db/id
                 :bones.command/name]
          :as command-to-post} (ffirst new)]
     (if name ;;fixme: weird nil bug
       (do
-        (handlers/dispatch [:update-command id :waiting])
+        (handlers/dispatch [:update-command uuid :waiting])
         (let [result (http/post (or url (str "http://localhost:3000/api/command/" name))
                                 {:message message :uuid uuid})
               success (> 299 (:status result)) ]
           ;; perhaps use uuid instead of id ? for consistancy
-          (handlers/dispatch [:update-command id (if success :received :error-sending)]))))
+          (handlers/dispatch [:update-command uuid (if success :received :error-sending)]))))
     ))
 
 (defrecord CommandListener [query-ratom]

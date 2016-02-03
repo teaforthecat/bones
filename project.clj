@@ -10,7 +10,7 @@
                  [org.danielsz/system "0.2.0"]
                  [aleph "0.4.1-beta3"]
                  [metosin/compojure-api "0.24.2"]
-                 [org.onyxplatform/onyx-kafka "0.8.2.2"]
+                 [org.onyxplatform/onyx-kafka "0.8.8.0"]
                  [com.cognitect/transit-clj "0.8.285"]
                  [ring-mock "0.1.5"]
                  [peridot "0.4.2"]
@@ -28,6 +28,7 @@
                  [bidi "1.25.0"]
                  [cljs-http "0.1.39"]
                  [ring-cors "0.1.7"]
+                 [jarohen/chord "0.7.0"]
                  ;; add once merged: https://github.com/ztellman/automat/pull/31
                  ;; [automat "0.1.3"]
                  ]

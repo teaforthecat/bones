@@ -13,7 +13,7 @@
             [expectations :refer [expect] :as expectations]
             [clojure.test :refer [deftest testing is use-fixtures]]
             [bones.http :as http]))
-
+;; todo add test for websocket
 (use-fixtures :once schema.test/validate-schemas)
 
 (defn parse-body [response]

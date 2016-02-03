@@ -107,7 +107,12 @@
 
 ;; hmm, positional args
 (defn receive-event-stream [db [message msg-number]]
+  "handle messages from the server - Server Sent Events"
   (let [{:keys [:uuid :input :output :job-sym]} message]
+    (if uuid
+      (dispatch [:update-command uuid :processed]))
+    ;; both update command and record events - just cause ?
+    ;; todo provide a function to react to events
     [{:db/id -1 :event/message message}
      {:db/id -1 :event/uuid uuid}
      {:db/id -1 :event/input input}
@@ -116,9 +121,17 @@
      {:db/id -1 :event/number msg-number}
      ]))
 
-(defn update-command [db [id state]]
+(defn update-command [db [uuid state & response-messages]]
   ;; or could query db, then create transaction
-  [{:db/id id :bones.command/state state}])
+  (let [result (datascript.core/q '{:find [?e]
+                                    :in [$ ?uuid]
+                                    :where [[?e :bones.command/uuid ?uuid]]}
+                                  db uuid)
+        eid (or (ffirst result) -1)]
+
+    [{:db/id eid :bones.command/state state}
+     (if (not (empty? response-messages))
+       {:db/id eid :bones.command/response-messages response-messages})]))
 
 (def ui-q
   '{:find [(pull ?e [:ui.component/state])]

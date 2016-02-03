@@ -12,8 +12,7 @@
 ; TODO move producer to system so we don't call .close on it everytime
 ; returns a future
 (defn produce [topic key data]
-  (log/info "sending " topic "to kafka")
-  (log/info data)
+  (log/info "sending " data "to kafka topic: " topic)
   (let [bytes (serialize data)
         key-bytes (.getBytes (str key))
         record (nkp/record topic key-bytes bytes)
@@ -39,7 +38,7 @@
         (doseq [m (zkc/messages cnsmr topic)]
           (if (authorized? m (str group-id))
             (do
-              (log/info "receiving " topic "from kafka")
+              (log/info "receiving " (deserialize (:value m))  " on " topic " from kafka ")
 
               (a/>! chan (deserialize (:value m))))))
        (finally

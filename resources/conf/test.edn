@@ -3,17 +3,19 @@
  :onyx/id "abcd1234"
  :zookeeper/address "127.0.0.1:2181"
  :zookeeper.server/port 2181
- :zookeeper/server? true
+ :zookeeper/server? true ;; for development
  :kafka/hostname "localhost"
  :kafka/port 9092
  :kafka/broker-id 0
- :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
+ ;; balanced allows multiple jobs to run at the same time,
+ ;; important for when you have kafka client jobs that are never done
+ :onyx.peer/job-scheduler :onyx.job-scheduler/balanced
  :onyx.messaging/impl :aeron
  :onyx.messaging.aeron/allow-short-circuit? true
  :onyx.messaging/bind-addr "localhost"
  :onyx.messaging/peer-port 40200
  :onyx.messaging.aeron/embedded-driver? true
- :onyx.peer/n-peers 4
+ :onyx.peer/n-peers 12
  ;; :onyx.log/file "onyx.log"
  ;; :onyx.log/config {...}
  }

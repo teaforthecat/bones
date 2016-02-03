@@ -2,6 +2,7 @@
   (:require [bones.kafka :as kafka]
             [bones.jobs :as jobs]
             [bones.log :as logger]
+            [aleph.http :as http]
             [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -129,7 +130,6 @@
   (let [user-id (get-in req [:identity :user :id])
         job-fn (jobs/topic-to-sym job-topic);; this is a funny dance
         input-topic (jobs/topic-name-input job-fn)
-        output-topic (jobs/topic-name-output job-fn)
         ;; uuid is optional :_kafka-key is not
         meta-data (merge (select-keys (:params req) [:uuid]) {:_kafka-key user-id})
         ;; store auth key for output topic
@@ -142,27 +142,122 @@
 (defn query-handler [query]
   (ok {:results "HI!"}))
 
+
+;; ##########
+;; # Web Socket
+;; ##########
+(def non-websocket-request
+  {:status 400
+   :headers {"content-type" "application/text"}
+   :body "Expected a websocket request."})
+
+(defn ws-handler [topic req]
+  "a websocket connection to the client stays open here"
+  (let [user-id (get-in req [:identity :user :id])
+        wat-user-id (or user-id (get-in req [:identity :id]))]
+    (println "ws-handler")
+    (if user-id
+      (do
+        (let [conn (d/catch
+                       @(http/websocket-connection req)
+                       (fn [_] nil))]
+          (if conn
+            (let [msg-ch (a/chan)
+                  shutdown-ch (a/chan)
+                  cnsmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
+              (log/info "starting kafka consumer on topic: " topic)
+              (a/go (a/<! (a/timeout 60e3))
+                    (a/>!! shutdown-ch :shutdown))
+              (a/go (a/timeout 1000)
+                    ;; testing
+                    (a/>!! msg-ch (print-str {:command :userspace.jobs/who, :job-sym :userspace.jobs/who, :uuid #uuid "0143c106-2414-45f2-b27e-4d0bb06259c9", :output {:b "Mr. Charles"}, :input {:name "aoeau", :role "user"}})))
+              (ms/connect
+               msg-ch
+               conn
+               :upstream? true ;closing the websocket connection closes the channel (right?)
+               :description "kafka websocket connection"))
+            (do
+              (log/info "invalid websocket request")
+              non-websocket-request))))
+      (do
+        (log/info "unauthorized websocket request")
+        (unauthorized)))))
+
+(comment
+
+  (def conn (http/websocket-connection req))
+  (def msg-ch (a/chan))
+  (a/go
+    (a/>! msg-ch "hello"))
+  (ms/connect
+   (ms/->source msg-ch)
+   conn))
+;; (defn ws-handler [req]
+;;   (if-let [socket (try
+;;                     @(http/websocket-connection req)
+;;                     (catch Exception e
+;;                       nil))]
+;;     (s/connect socket socket)
+;;     non-websocket-request))
+
+
+;; ##########
+;; # Events
+;; ##########
+
+(def consumer-registry (atom {}))
+
+(defn register-consumer [user-id consumer]
+  (swap! consumer-registry update user-id (comp set conj) consumer))
+
+(defn unregister-consumer [user-id consumer]
+  ;; since user gets only one topic/consumer
+  ;; todo maybe add topic filter
+  (swap! consumer-registry assoc user-id #{}))
+
+;; this only makes sense if there is only one webserver, which is crazy
+;; perhaps a load balancer will force a user to use one webserver (?)
+;; at least reloading the page during development will work
+(defn find-consumer [user-id & topics]
+  (let [cnmrs (get @consumer-registry user-id)]
+    (if (not-empty topics)
+      (filter #(some #{(:topic %)} topics) ;;weird include? predicate
+              cnmrs)
+      cnmrs)))
+
+;; all this consumer-registry stuff is of questionable value
+(defn close-consumer [{:keys [msg-ch shutdown-ch] :as consumer}]
+  (unregister-consumer consumer)
+  (a/>!! msg-ch :reconnect)
+  (a/>!! shutdown-ch :shutdown))
+
+(defn event-stream-close-handler [req]
+  (let [user-id (get-in req [:identity :user :id])
+        ;; todo add topic filter param
+        consumers (find-consumer user-id)]
+    (map close-consumer consumers)
+    (ok (str "closed consumers: " (map :topic consumers)))))
+
 (defn events-handler [topic req]
   "a connection to the client stays open here"
   (let [user-id (get-in req [:identity :user :id])
         wat-user-id (or user-id (get-in req [:identity :id]))
-        msg-ch (a/chan)
-        shutdown-ch (a/chan)]
+        {:keys [msg-ch shutdown-ch]} (first (find-consumer user-id topic))]
     (if user-id
-      ;; FIXME: only support one topic for now?
       (do
-        (log/info "starting kafka consumer")
-        (let [csmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
-          ;; if the csmr receives a message between the time the user closes a connection
-          ;; and this timeout fires, the user will never get the message
-          ;; todo: make this a configurable value, 1 minute is just a guess at a reasonable lifespan
-          (a/go (a/<! (a/timeout 60e3))
-                (a/>! msg-ch :reconnect)
-                (a/>! shutdown-ch :shutdown))
-          ;; TODO: add MIME-Type
-          (event-stream topic msg-ch)))
+        (if msg-ch
+          (do
+            (log/info "found kafka consumer on topic: " topic)
+            (event-stream topic msg-ch))
+          (let [msg-ch (a/chan)
+                shutdown-ch (a/chan)
+                cnsmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
+            (log/info "starting kafka consumer on topic: " topic)
+            (a/go (a/<! (a/timeout 60e3))
+                  (close-consumer cnsmr))
+            (register-consumer user-id {:topic topic :shutdown-ch shutdown-ch :msg-ch msg-ch})
+            (event-stream topic msg-ch))))
       {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))
-
 
 (defmacro make-commands [job-specs]
   (map
@@ -185,7 +280,11 @@
                           :class (.getName (.getClass error))}))
 
 (defn cqrs [path jobs]
-  (let [outputs (map (comp bones.jobs/topic-name-output first) jobs)
+  (let [fn-outputs (map (comp bones.jobs/topic-name-output first) jobs)
+        ;;; todo support multiple namespaces - oh my
+        general-outputs (map (comp bones.jobs/general-output first) jobs)
+        outputs (concat fn-outputs general-outputs)
+        ;;;aeeihotuhnaohunotuhsontuhaso
         outputs-enum `((s/enum ~@outputs))
         commands `(make-commands ~jobs)]
     `(api
@@ -198,11 +297,21 @@
       (context* ~path []
                 :tags ["cqrs"]
                 ~@(macroexpand commands)
+                (POST* "/events/close" {:as ~'req}
+                       (if (~'buddy.auth/authenticated? ~'req)
+                         (event-stream-close-handler ~'req)
+                         (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/events" {:as ~'req}
                       :query-params [~'topic :- ~@outputs-enum]
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
                       (if (~'buddy.auth/authenticated? ~'req)
                         (events-handler ~'topic ~'req)
+                        (~'ring.util.http-response/unauthorized "Authentication Token required")))
+                (GET* "/ws" {:as ~'req}
+                      :query-params [~'topic :- ~@outputs-enum]
+                      :header-params [{~'AUTHORIZATION "Token: xyz"}]
+                      (if (~'buddy.auth/authenticated? ~'req)
+                        (ws-handler ~'topic ~'req)
                         (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/query" {:as ~'req}
                       :query-params [~'query :- s/Any]
