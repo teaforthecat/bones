@@ -11,8 +11,10 @@ See `src/userspace/core.clj` for intended usage example
 
 ## So far so good
 After starting the repl
-1. `(bootup)`
-2. `(start)`
+
+
+1. `(bootup)` ;; starts onyx for back end
+2. `(start)` ;; starts figwheel for front end
 3. Then login with "jerry:jerry" as below to get a token
 4. Then setup an SSE event listener
 5. Then post to a command
