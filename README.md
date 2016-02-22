@@ -7,6 +7,15 @@ Basically an implementation of the design mentioned here: [From REST to CQRS](ht
 
 Leiningen 2.6.1
 
+Leiningen plugin: git-deps
+Add this to your `~/.lein/profiles.clj`
+```
+{:user
+ {:plugins [
+            [lein-git-deps "0.0.1-SNAPSHOT"]
+```
+
+
 ## Usage
 
 See `src/userspace/core.clj` for intended usage example
