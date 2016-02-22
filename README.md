@@ -3,6 +3,9 @@
 A work-in-progress CQRS/Rest frameworky thing. Backed by [Onyx](https://github.com/onyx-platform/onyx).
 Basically an implementation of the design mentioned here: [From REST to CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA)
 
+## Prerequisites
+
+Leiningen 2.6.1
 
 ## Usage
 
