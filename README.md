@@ -85,6 +85,36 @@ curl -X POST --header "Content-Type: application/json" --header "Accept: applica
 curl 'http://localhost:3000/login' -X OPTIONS -H 'Access-Control-Request-Method: POST' -H 'Origin: http://localhost:3449' -H 'Accept-Encoding: gzip, deflate, sdch' -H 'Accept-Language: en-US,en;q=0.8' -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36' -H 'Accept: */*' -H 'Referer: http://localhost:3449/' -H 'Connection: keep-alive' -H 'DNT: 1' -H 'Access-Control-Request-Headers: content-type' --compressed -v
 ```
 
+## UI
+### Testing the form
+After starting the repl
+
+1. `(bootup)` ;; starts onyx for back end
+2. `(start)` ;; starts figwheel for front end
+3. visit localhost:3000 to see the swagger api
+4. or go straight to the spa at localhost:3449
+5. login with "jerry:jerry"
+6. click "Yes" to see that the counter works
+7. click "Add who" fill in some values and click submit
+8. see the state of the form go through these phases `new -> received -> processed`. It will be pretty fast. If you don't see `proccessed` there was a problem.
+
+### Errors
+
+The websocket connection is commented out in favor of SSE for now.
+The SSE/websocket connection to the kafka consumer is very brittle. It
+might be possible that there are multiple consumers running which
+prevent the browser from getting messages. It might also be possible
+that the server and browser don't agree on the protocol (?). Both
+connections close and create errors and I don't have an answer for why
+right now. Hopefully you will be able to see the full lifecycle of a
+request to the processed state. If you do see errors the only answer
+right I have right now is to restart the whole repl.
+
+
+
+
+
+
 ## License
 
 Copyright © 2015 ct
