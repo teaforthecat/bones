@@ -103,7 +103,7 @@
 (defn display-button [label action]
   [:button {:on-click action} label])
 
-(defn display-form [fields errors submit-fn cancel-fn]
+(defn display-who-form [fields errors submit-fn cancel-fn]
   (let [validation (fn [id value doc]
                      (println doc)
                      doc)]
@@ -129,6 +129,70 @@
          fields
          validation]))))
 
+
+(defn display-wat-form [fields errors submit-fn cancel-fn]
+  (let [validation (fn [id value doc]
+                     (println doc)
+                     (println id)
+                     (println value)
+                     doc)
+        command :userspace.jobs/wat
+        error_messages {:weight-kg {:aria "Must be a Number"}}
+        defaults {:weight-kg 0}
+        validator (bones/form-validator (command some-jobs) error_messages)]
+    (fn [fields errors submit-fn cancel-fn]
+      (let []
+        [bind-fields
+         [:div.fieldset
+          [:label.control-label {:for :weight-kg
+                                 :field :label
+                                 :id :weight-kg
+                                 :preamble "Weight: "
+                                 :postamble " kg"}]
+          ;; (bones/bootstrap-field-with-feedback :weight-kg "" validator :type :range :field :range)
+          ;; (bones/bootstrap-field-with-feedback :name "Name" validator)
+         [:div.fieldset
+          [:label {:for :name} "Name:"]
+          [:span.field_container {:field :container
+                                  :valid? #(if (get-in @fields [:errors :name]) "field_with_errors" "")}
+           [:span.errors {:id :errors.name :field :label}]
+           [:input {:id :name :field :text}]]
+
+          [:label {:for :weight-kg} "Weight-Kg:"]
+          [:span.field_container {:field :container
+                                  :valid? #(if (get-in @fields [:errors :weight-kg]) "field_with_errors" "")}
+           [:span.errors {:id :errors.weight-kg :field :label}]
+           [:input {:id :weight-kg :field :range}]]
+
+          [display-button "Cancel" cancel-fn]
+          [display-button "Submit" #(submit-fn @fields)]
+         ]]
+         fields
+         validation]))))
+
+(def wat-url (str "http://localhost:3000/api/command/userspace.jobs..wat"))
+
+(defn wat-form []
+  (let [form (bones.forms/new-form {:defaults {:weight-kg 0}
+                                    :url wat-url
+                                    :command :userspace.jobs/wat})]
+    (fn []
+      (let [current-state @form
+            {:keys [:defaults
+                    :fields
+                    :errors
+                    :submit-fn
+                    :cancel-fn
+                    :new-fn]} current-state
+            state (get-in current-state [:fsm :value :state])]
+        [:div
+         [:div.debug (str "state: " state)]
+         (if (some #{state} #{:hidden :cancel :processed})
+           [display-button "Add Wat" new-fn]
+           [display-wat-form fields errors submit-fn cancel-fn])]
+        ))
+    ))
+
 (def who-url (str "http://localhost:3000/api/command/userspace.jobs..who"))
 
 (defn who-form []
@@ -148,7 +212,7 @@
          [:div.debug (str "state: " state)]
          (if (some #{state} #{:hidden :cancel :processed})
            [display-button "Add Who" new-fn]
-           [display-form fields errors submit-fn cancel-fn])]
+           [display-who-form fields errors submit-fn cancel-fn])]
         ))
     ))
 
@@ -158,9 +222,11 @@
    [bones/login-form]
    [yes-button]
    [click-count]
-   [toggled-form [:ui-q :userspace.jobs/wat]
-    [form-for :userspace.jobs/wat {:weight-kg {:aria "Must be a Number"}} {:weight-kg 0}]
-    [:button {:on-click #(dispatch [:ui :userspace.jobs/wat :show])} "Add wat" ]]
+   ;; WIP
+   ;; [toggled-form [:ui-q :userspace.jobs/wat]
+   ;;  [form-for :userspace.jobs/wat {:weight-kg {:aria "Must be a Number"}} {:weight-kg 0}]
+   ;;  [:button {:on-click #(dispatch [:ui :userspace.jobs/wat :show])} "Add wat" ]]
+   ;; [wat-form]
    [who-form]
    [messages-received]])
 

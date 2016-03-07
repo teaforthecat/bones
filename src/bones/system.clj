@@ -92,10 +92,9 @@
           (doseq [[job spec] job-specs]
             ;; create topics required by onyx.kafka plugin to exist
             (bones.kafka/produce (bones.jobs/topic-name-input job) "init" {:segment "init"})
-            (bones.kafka/produce (bones.jobs/topic-name-output job) "init" {:segment "init"})
             ;; this one is for the browser
             ;; this only needs to be done once per namespace, but more than once doesn't hurt
-            (bones.kafka/produce (bones.jobs/general-output job) "init" {:segment "init"}))
+            (bones.kafka/produce (bones.jobs/ns-name-output job) "init" {:segment "init"}))
           (-> cmp
               (assoc :job-specs job-specs)
               (assoc :jobs jobs)
@@ -146,10 +145,10 @@
       cmp)))
 
 (s/defschema ZkConf
-{(s/optional-key :zookeeper/server?) s/Bool
-:zookeeper/address s/Str
-:onyx/id s/Str
-s/Any s/Any} )
+  {(s/optional-key :zookeeper/server?) s/Bool
+   :zookeeper/address s/Str
+   :onyx/id s/Str
+   s/Any s/Any} )
 
 (defrecord ZK [conf]
   component/Lifecycle

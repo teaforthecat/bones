@@ -5,6 +5,16 @@
             [cljs.core.async :as a]
             [cljs-http.client :as http]
             [chord.client :refer [ws-ch]]))
+;; this could move
+(defn post [url data]
+  (go
+    (let [resp (<! (http/post url  {:edn-params data}))]
+      resp)))
+
+;; this needs to be configurable duh
+(defn close-consumers []
+  (println "closing consumers")
+  (post "http://localhost:3000/api/events/close" {}))
 
 (def ws-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output")
 
@@ -22,16 +32,23 @@
         (println "starting websocket stream")
         (assoc cmp :stream
                (go
-                 (let [read-ch (a/chan (a/sliding-buffer 10))
-                       incoming-msg-ch (ws-ch url {:read-ch read-ch})]
+                 (let [read-ch (a/chan)
+                       write-ch (a/chan)
+                       incoming-msg-ch (ws-ch url {:read-ch read-ch :write-ch write-ch})]
                    (loop []
-                     (let [{:keys [message error] :as msg} (a/<! read-ch)]
+                     ;; (js/console.log (str "incoming-msg-ch: " incoming-msg-ch))
+                     ;; (js/console.log (a/<! read-ch))
+                     ;; (js/console.log (str "incoming-msg-ch: " (a/<! incoming-msg-ch)))
+                     ;; (js/console.log (str "incoming-msg-ch: " (:ws-channel (a/<! incoming-msg-ch))))
+                     (let [{:keys [message error] :as msg} (a/<! read-ch)] ;(a/alts! (a/<! read-ch) (a/<! write-ch))]
                        (js/console.log (str "msg: " msg))
                        (js/console.log (str "message: " message))
                        (js/console.log (str "error: " error))
-                       (if message
-                         (a/>! (:msg-ch cmp) (cljs.reader/read-string message)))
-                       (a/<! (a/timeout 1000)))
+                       ;; (if message
+                       ;;   (a/>! (:msg-ch cmp) (cljs.reader/read-string message))))
+                       ;; this infinite loop will block the browser unfortunately
+                       (a/<! (a/timeout 1000))
+                       )
                      (recur)))))))))
 
 ;; (defn ws-test []
@@ -56,13 +73,17 @@
                                     (let [msg (cljs.reader/read-string ev.data)]
                                       (if (= msg :reconnect)
                                         (do
+                                          (js/console.log "reconnecting")
                                           (component/stop cmp)
                                           (component/start cmp))
                                         ;; TODO transit?
-                                        (a/put! (:msg-ch cmp) msg)))))
+                                        (a/put! (:msg-ch cmp) msg)))
+                                    ))
           (set! (.-onerror src) (fn [ev]
                                   (js/console.log "onerror")
-                                  (js/console.log ev)))
+                                  (js/console.log ev)
+                                  (.close src)
+                                  ))
           (set! (.-onopen src) (fn [ev]
                                  (js/console.log "EventSource listening")))
           (-> cmp
@@ -79,16 +100,6 @@
         (println "stream already closed")
         cmp))))
 
-;; this could move
-(defn post [url data]
-  (go
-    (let [resp (<! (http/post url  {:edn-params data}))]
-      resp)))
-
-;; this needs to be configurable duh
-(defn close-consumers []
-  (println "closing consumers")
-  (post "http://localhost:3000/api/events/close" {}))
 
 ;; close consumers so messages are not lost
 ;; (goog.events.listen js/window
@@ -97,8 +108,8 @@
 
 
 (defn event-source [url msg-ch]
-  ;;(map->EventSource {:url url :msg-ch msg-ch})
-  (map->WebSocketSource {:url url :msg-ch msg-ch})
+  (map->EventSource {:url url :msg-ch msg-ch})
+  ;;(map->WebSocketSource {:url url :msg-ch msg-ch})
   )
 
 

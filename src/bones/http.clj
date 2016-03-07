@@ -2,6 +2,7 @@
   (:require [bones.kafka :as kafka]
             [bones.jobs :as jobs]
             [bones.log :as logger]
+            [bones.serializer :refer [serialize deserialize]]
             [aleph.http :as http]
             [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
@@ -155,51 +156,34 @@
   "a websocket connection to the client stays open here"
   (let [user-id (get-in req [:identity :user :id])
         wat-user-id (or user-id (get-in req [:identity :id]))]
-    (println "ws-handler")
     (if user-id
       (do
         (let [conn (d/catch
                        @(http/websocket-connection req)
                        (fn [_] nil))]
           (if conn
-            (let [msg-ch (a/chan)
-                  shutdown-ch (a/chan)
-                  cnsmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
-              (log/info "starting kafka consumer on topic: " topic)
-              (a/go (a/<! (a/timeout 60e3))
-                    (a/>!! shutdown-ch :shutdown))
-              (a/go (a/timeout 1000)
-                    ;; testing
-                    (a/>!! msg-ch (print-str {:command :userspace.jobs/who, :job-sym :userspace.jobs/who, :uuid #uuid "0143c106-2414-45f2-b27e-4d0bb06259c9", :output {:b "Mr. Charles"}, :input {:name "aoeau", :role "user"}})))
+            (let [consumer-config {"zookeeper.connect" "127.0.0.1:2181"
+                                   "group.id" (str user-id)
+                                   "auto.offset.reset" "smallest"}
+                  [cnmr messages] (kafka/output-stream consumer-config topic)
+                  message-source (ms/->source messages)
+                  real-message-source (ms/transform #(deserialize (:value %)) message-source)
+                  ]
+              (ms/on-closed conn #(.shutdown cnmr))
+              (ms/on-closed conn #(log/info "conn closed"))
+              (ms/consume #(ms/put! conn (deserialize (:value %))) message-source)
+              (ms/consume #(ms/put! conn (:value %)) (ms/->source (lazy-seq [{:value "hello"}])))
+
               (ms/connect
-               msg-ch
-               conn
-               :upstream? true ;closing the websocket connection closes the channel (right?)
-               :description "kafka websocket connection"))
-            (do
-              (log/info "invalid websocket request")
-              non-websocket-request))))
+               message-source
+               conn)
+              )
+              (do
+                (log/info "invalid websocket request")
+                non-websocket-request))))
       (do
         (log/info "unauthorized websocket request")
         (unauthorized)))))
-
-(comment
-
-  (def conn (http/websocket-connection req))
-  (def msg-ch (a/chan))
-  (a/go
-    (a/>! msg-ch "hello"))
-  (ms/connect
-   (ms/->source msg-ch)
-   conn))
-;; (defn ws-handler [req]
-;;   (if-let [socket (try
-;;                     @(http/websocket-connection req)
-;;                     (catch Exception e
-;;                       nil))]
-;;     (s/connect socket socket)
-;;     non-websocket-request))
-
 
 ;; ##########
 ;; # Events
@@ -253,7 +237,7 @@
                 shutdown-ch (a/chan)
                 cnsmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
             (log/info "starting kafka consumer on topic: " topic)
-            (a/go (a/<! (a/timeout 60e3))
+            (a/go (a/<! (a/timeout 10e3))
                   (close-consumer cnsmr))
             (register-consumer user-id {:topic topic :shutdown-ch shutdown-ch :msg-ch msg-ch})
             (event-stream topic msg-ch))))
@@ -282,7 +266,7 @@
 (defn cqrs [path jobs]
   (let [fn-outputs (map (comp bones.jobs/topic-name-output first) jobs)
         ;;; todo support multiple namespaces - oh my
-        general-outputs (map (comp bones.jobs/general-output first) jobs)
+        general-outputs (map (comp bones.jobs/ns-name-output first) jobs)
         outputs (concat fn-outputs general-outputs)
         ;;;aeeihotuhnaohunotuhsontuhaso
         outputs-enum `((s/enum ~@outputs))

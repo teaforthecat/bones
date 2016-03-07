@@ -3,6 +3,7 @@
             [taoensso.timbre :as log]
             [clojure.core.async :as a]
             [byte-streams :as bs]
+            [manifold.stream :as ms]
             [clj-kafka.core :refer [with-resource]]
             [clj-kafka.zk :as zk]
             [clj-kafka.consumer.zk :as zkc]
@@ -31,7 +32,7 @@
 (defn personal-consumer [chan shutdown-ch group-id topic]
   (let [cnsmr (zkc/consumer {"zookeeper.connect" "127.0.0.1:2181"
                              "group.id" (str group-id)
-                             "auto.offset.reset" "largest"})]
+                             "auto.offset.reset" "smallest"})]
     (a/go (a/<! shutdown-ch) (zkc/shutdown cnsmr)) ;; easy cleanup
     (a/go
       (try
@@ -44,3 +45,7 @@
        (finally
          (zkc/shutdown cnsmr) ;; incase of errors(?)
                 )))))
+
+(defn output-stream [consumer-config topic]
+  (let [consumer (zkc/consumer consumer-config)]
+    [consumer (zkc/messages consumer topic)]))

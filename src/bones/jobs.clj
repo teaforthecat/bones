@@ -46,12 +46,10 @@
    :onyx/type :function})
 
 ;; todo refactor use map
-(defn kafka-lifecycle [input-task output-task general-output-task]
+(defn kafka-lifecycle [input-task output-task]
   [{:lifecycle/task input-task
     :lifecycle/calls :onyx.plugin.kafka/read-messages-calls}
    {:lifecycle/task output-task
-    :lifecycle/calls :onyx.plugin.kafka/write-messages-calls}
-   {:lifecycle/task general-output-task
     :lifecycle/calls :onyx.plugin.kafka/write-messages-calls}])
 
 (defn sym-to-topic [^clojure.lang.Keyword job-sym]
@@ -70,35 +68,26 @@
 (defn topic-name-output [^clojure.lang.Keyword job-sym]
   (str (sym-to-topic job-sym) "-output"))
 
-(defn general-output [^clojure.lang.Keyword job-sym]
+(defn ns-name-output [^clojure.lang.Keyword job-sym]
   (str (namespace job-sym ) "-output"))
 
 (defn catalog [job-sym]
   [(topic-reader (topic-name-input job-sym))
    (topic-function job-sym)
-   ;; so the browser can use only one connection
-   (topic-writer (general-output job-sym))
-   (topic-writer (topic-name-output job-sym))
+   (topic-writer (ns-name-output job-sym))
    ])
 
 (defn workflow [job-sym]
   "routes segments through a function in a kafka-function-kafka sandwich
    given a symbol x, create two vectors as: [[x-input x] [x x-output]]"
-  (let [input (topic-name-input job-sym)
-        output (topic-name-output job-sym)
-        first-flow (mapv keyword [input job-sym])
-        second-flow (mapv keyword [job-sym output])
-        ;; add a fork to send output to two topics (one is for the browser)
-        general-flow (mapv keyword [job-sym (general-output job-sym)])
-        ]
-    [first-flow
-     general-flow
-     #_second-flow]))
+  (let [input (keyword (topic-name-input job-sym))
+        output (keyword (ns-name-output job-sym))]
+    [[input job-sym]
+     [job-sym output]]))
 
 (defn lifecycle [job-sym]
   (kafka-lifecycle (keyword (topic-name-input job-sym))
-                   (keyword (topic-name-output job-sym))
-                   (keyword (general-output job-sym))
+                   (keyword (ns-name-output job-sym))
                    ))
 
 (defn build-default-job [job-sym]
@@ -116,16 +105,12 @@
                                  (assoc-in [:catalog 0 :kafka/zookeeper]
                                            (:zookeeper/address conf))
                                  (assoc-in [:catalog 2 :kafka/zookeeper]
-                                           (:zookeeper/address conf))
-                                 (assoc-in [:catalog 3 :kafka/zookeeper]
                                            (:zookeeper/address conf)))
       (:kafka/deserializer-fn conf) (assoc-in [:catalog 0 :kafka/deserializer-fn]
                                               (:kafka/deserializer-fn conf))
 ;;fixme this 2 3 stuff needs to change
       (:kafka/serializer-fn conf) (->
                                    (assoc-in [:catalog 2 :kafka/serializer-fn]
-                                                (:kafka/serializer-fn conf))
-                                   (assoc-in [:catalog 3 :kafka/serializer-fn]
                                                 (:kafka/serializer-fn conf)))
       (:onyx.task-scheduler conf) (assoc :task-scheduler
                                          (:onyx.task-scheduler conf)))))
@@ -156,5 +141,4 @@
      (job-middleware (namespaced-symbol ~name)
       (fn ~signature
         ~@form
-        )
-      )))
+        ))))

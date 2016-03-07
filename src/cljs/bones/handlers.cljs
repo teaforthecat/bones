@@ -71,8 +71,7 @@
  :flash
  []
  (fn [app-db [_ type message]]
-   (.log js/console type)
-   (.log js/console message)
+   (.log js/console (str "flash message: " type " - " message))
    app-db))
 
 (defn logged-in? []
