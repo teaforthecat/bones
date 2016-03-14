@@ -105,7 +105,7 @@ After starting the repl
 ### Errors
 
 The SSE/websocket connection to the kafka consumer is very brittle. If
-there is a websocket connection error in the browser, reload it works
+there is a websocket connection error in the browser, reload; it works
 most times(?). Unfortunately, reloading an SSE connection will result
 in multiple consumers running. That is why the SSE connection will
 probably be removed (currently commented out on the client) in favor
