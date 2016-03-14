@@ -3,7 +3,8 @@
             [bones.jobs :as jobs]
             [bones.log :as logger]
             [bones.serializer :refer [serialize deserialize]]
-            [aleph.http :as http]
+            [aleph.http :as aleph]
+            [aleph.netty]
             [taoensso.timbre :as log]
             [ring.util.http-response :refer [ok service-unavailable header not-found bad-request unauthorized internal-server-error]]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -30,6 +31,9 @@
             [buddy.hashers :as hashers]
             [datascript.core :as ds]
             [byte-streams :as bs]))
+
+
+(aleph.netty/set-logger! :log4j)
 
 (def example-uuid (java.util.UUID/randomUUID))
 
@@ -60,18 +64,32 @@
   "Server Sent Events"
   ([event-name source]
    (event-stream event-name source {}))
-  ([event-name source headers]
-   {:status 200
-    :headers (merge {"Content-Type"  "text/event-stream"
-                     "Cache-Control" "no-cache"
-                     "Connection"    "keep-alive"}
-                    headers)
-    :body (ms/transform
-           (map #(format "data: %s \n\n" %))
-           ;; no worky in browser:
-           ;; (map #(format "event: %s \ndata: %s \n\n" event-name %))
-           1 ;;buffer size
-           (ms/->source source))}))
+  ([event-name source headers onclose-callback]
+   (let [canary (ms/stream); 1 (map #(do (log/info %) %)))
+         stream (ms/transform
+                 (map #(format "data: %s \n\n" %))
+                 ;; no worky in browser:
+                 ;; (map #(format "event: %s \ndata: %s \n\n" event-name %))
+                 1 ;;buffer size
+                 ;; (ms/->source (lazy-seq [1 2 3])))
+                 (ms/->source source))
+
+         ]
+     (ms/connect stream canary)
+     ;; (ms/consume #(log/info %) stream)
+     ;; (log/info "event-stream" (type source))
+     ;; (ms/on-closed stream onclose-callback)
+     (ms/on-closed canary #(log/info "closed event-stream"))
+     ;; (ms/consume #(log/info %) canary)
+
+     ;; )
+
+     {:status 200
+      :headers (merge {"Content-Type"  "text/event-stream"
+                       "Cache-Control" "no-cache"
+                       "Connection"    "keep-alive"}
+                      headers)
+      :body canary})))
 
 (s/defschema QueryResult
   {:results s/Any})
@@ -144,60 +162,23 @@
   (ok {:results "HI!"}))
 
 
-;; ##########
-;; # Web Socket
-;; ##########
-(def non-websocket-request
-  {:status 400
-   :headers {"content-type" "application/text"}
-   :body "Expected a websocket request."})
 
-(defn ws-handler [topic req]
-  "a websocket connection to the client stays open here"
-  (let [user-id (get-in req [:identity :user :id])
-        wat-user-id (or user-id (get-in req [:identity :id]))]
-    (if user-id
-      (do
-        (let [conn (d/catch
-                       @(http/websocket-connection req)
-                       (fn [_] nil))]
-          (if conn
-            (let [consumer-config {"zookeeper.connect" "127.0.0.1:2181"
-                                   "group.id" (str user-id)
-                                   "auto.offset.reset" "smallest"}
-                  [cnmr messages] (kafka/output-stream consumer-config topic)
-                  message-source (ms/->source messages)
-                  real-message-source (ms/transform #(deserialize (:value %)) message-source)
-                  ]
-              (ms/on-closed conn #(.shutdown cnmr))
-              (ms/on-closed conn #(log/info "conn closed"))
-              (ms/consume #(ms/put! conn (deserialize (:value %))) message-source)
-              (ms/consume #(ms/put! conn (:value %)) (ms/->source (lazy-seq [{:value "hello"}])))
-
-              (ms/connect
-               message-source
-               conn)
-              )
-              (do
-                (log/info "invalid websocket request")
-                non-websocket-request))))
-      (do
-        (log/info "unauthorized websocket request")
-        (unauthorized)))))
 
 ;; ##########
-;; # Events
+;; # Consumer Registry
 ;; ##########
+;; good for stubbing kafka
 
 (def consumer-registry (atom {}))
 
-(defn register-consumer [user-id consumer]
+(defn register-consumer [{:keys [user-id] :as consumer}]
+  (log/info "register-consumer" consumer)
   (swap! consumer-registry update user-id (comp set conj) consumer))
 
-(defn unregister-consumer [user-id consumer]
+(defn unregister-consumer [{:keys [user-id] :as consumer}]
   ;; since user gets only one topic/consumer
   ;; todo maybe add topic filter
-  (swap! consumer-registry assoc user-id #{}))
+  (swap! consumer-registry dissoc user-id))
 
 ;; this only makes sense if there is only one webserver, which is crazy
 ;; perhaps a load balancer will force a user to use one webserver (?)
@@ -211,9 +192,76 @@
 
 ;; all this consumer-registry stuff is of questionable value
 (defn close-consumer [{:keys [msg-ch shutdown-ch] :as consumer}]
+  (log/info "close-consumer" consumer)
   (unregister-consumer consumer)
   (a/>!! msg-ch :reconnect)
   (a/>!! shutdown-ch :shutdown))
+
+
+;; ##########
+;; # Web Socket
+;; ##########
+(def non-websocket-request
+  {:status 400
+   :headers {"content-type" "application/text"}
+   :body "Expected a websocket request."})
+
+(defn consumer-for [req]
+  (let [user-id (get-in req [:identity :user :id])
+        topic (get-in req [:params :topic])
+        consumer  (first (find-consumer user-id topic))]
+    (if consumer
+      consumer
+      (let [msg-ch (a/chan)
+            shutdown-ch (a/chan)
+            new-consumer (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
+        (log/info "starting kafka consumer on topic: " topic)
+        ;; (a/go (a/<! (a/timeout 10e3))
+        ;;       (close-consumer consumer))
+        (let [consumer {:user-id user-id :topic topic :shutdown-ch shutdown-ch :msg-ch msg-ch}]
+          (register-consumer consumer))
+        new-consumer))))
+
+(defn handle-websocket-connection [req]
+  (let [{:keys [msg-ch shutdown-ch] :as consumer} (consumer-for req)
+        messages (ms/transform (map pr-str) (ms/->source msg-ch))
+        connection @(aleph/websocket-connection req)
+        incoming (ms/stream)]
+    (log/info "handle-websocket-connection: connecting")
+    ;; (ms/on-closed connection #(a/put! shutdown-ch :shutdown))
+    (ms/on-closed connection #(close-consumer consumer))
+    (ms/on-closed connection #(log/info "handle-websocket-connection: closed"))
+    ;; (ms/put! connection "hello")
+    ;; (ms/consume #(log/info %) messages)
+    (d/catch
+        (ms/connect
+         messages
+         connection)
+        (fn [e] (throw e)))
+    ))
+
+
+(defn make-fake-websocket-handler
+  "a shim for testing only"
+  [user-id topic]
+  (fn [req]
+    (handle-websocket-connection (-> req
+                                     (assoc-in [:identity :user :id] user-id)
+                                     (assoc-in [:params :topic] topic)))))
+
+(defn ws-handler [req]
+  "a websocket connection to the client stays open here"
+  (if-let [user-id (get-in req [:identity :user :id])]
+    ;; also [:params :topic]
+    (handle-websocket-connection req)
+    (do
+      ;; if this happens there is something wrong on our side
+      (log/info "unauthorized websocket request")
+      (unauthorized))))
+
+;; ##########
+;; # Events
+;; ##########
 
 (defn event-stream-close-handler [req]
   (let [user-id (get-in req [:identity :user :id])
@@ -237,10 +285,11 @@
                 shutdown-ch (a/chan)
                 cnsmr (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
             (log/info "starting kafka consumer on topic: " topic)
-            (a/go (a/<! (a/timeout 10e3))
-                  (close-consumer cnsmr))
-            (register-consumer user-id {:topic topic :shutdown-ch shutdown-ch :msg-ch msg-ch})
-            (event-stream topic msg-ch))))
+            ;; (a/go (a/<! (a/timeout 10e3))
+            ;;       (close-consumer cnsmr))
+            (let [consumer {:user-id user-id :topic topic :shutdown-ch shutdown-ch :msg-ch msg-ch}]
+              (register-consumer consumer)
+              (event-stream topic msg-ch {} (partial close-consumer consumer))))))
       {:status 401 :body "unauthorized" :headers {:content-type "application/edn"}})))
 
 (defmacro make-commands [job-specs]
@@ -295,7 +344,7 @@
                       :query-params [~'topic :- ~@outputs-enum]
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
                       (if (~'buddy.auth/authenticated? ~'req)
-                        (ws-handler ~'topic ~'req)
+                        (ws-handler ~'req)
                         (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/query" {:as ~'req}
                       :query-params [~'query :- s/Any]

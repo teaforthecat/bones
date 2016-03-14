@@ -15,8 +15,8 @@
 
 ;; this should be configurable duh
 (def config
-  {:event-source-url "http://localhost:3000/api/events?topic=userspace.jobs-output"}
-;;  {:event-source-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output"}
+;;  {:event-source-url "http://localhost:3000/api/events?topic=userspace.jobs-output"}
+  {:event-source-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output"}
   )
 
 

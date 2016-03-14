@@ -11,8 +11,12 @@
   (system/stop-system userspace.core/sys))
 
 
-(defn start [] (ra/start-figwheel!))
+(defn start []
+  (system/start-system userspace.core/sys :http :conf)
+  (ra/start-figwheel!))
 
-(defn stop [] (ra/stop-figwheel!))
+(defn stop []
+  (system/stop-system userspace.core/sys :http :conf)
+  (ra/stop-figwheel!))
 
 (defn cljs [] (ra/cljs-repl "dev"))

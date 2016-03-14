@@ -19,7 +19,7 @@
 (def ws-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output")
 
 (defn ws-channel [url]
-  (ws-ch ws-url))
+  (ws-ch  ws-url))
 
 (defrecord WebSocketSource [state url msg-ch listener-loop]
   component/Lifecycle
@@ -32,24 +32,18 @@
         (println "starting websocket stream")
         (assoc cmp :stream
                (go
-                 (let [read-ch (a/chan)
-                       write-ch (a/chan)
-                       incoming-msg-ch (ws-ch url {:read-ch read-ch :write-ch write-ch})]
-                   (loop []
-                     ;; (js/console.log (str "incoming-msg-ch: " incoming-msg-ch))
-                     ;; (js/console.log (a/<! read-ch))
-                     ;; (js/console.log (str "incoming-msg-ch: " (a/<! incoming-msg-ch)))
-                     ;; (js/console.log (str "incoming-msg-ch: " (:ws-channel (a/<! incoming-msg-ch))))
-                     (let [{:keys [message error] :as msg} (a/<! read-ch)] ;(a/alts! (a/<! read-ch) (a/<! write-ch))]
-                       (js/console.log (str "msg: " msg))
-                       (js/console.log (str "message: " message))
-                       (js/console.log (str "error: " error))
-                       ;; (if message
-                       ;;   (a/>! (:msg-ch cmp) (cljs.reader/read-string message))))
-                       ;; this infinite loop will block the browser unfortunately
-                       (a/<! (a/timeout 1000))
-                       )
-                     (recur)))))))))
+                   (if-let [websocket (:ws-channel (a/<! (ws-ch url)))]
+                     (loop []
+                       (let [{:keys [message error] :as msg} (a/<! websocket)]
+                         (if message (js/console.log (str "message: " message)))
+                         (if error (js/console.log (str "error: " error)))
+                         (if message
+                           (a/>! (:msg-ch cmp) message))
+                         ;; this infinite loop will block the browser unfortunately
+                         ;; (a/<! (a/timeout 1000))
+                         (if msg ;; closed?
+                           (recur)
+                           :error))))))))))
 
 ;; (defn ws-test []
 ;;   (go
@@ -108,8 +102,8 @@
 
 
 (defn event-source [url msg-ch]
-  (map->EventSource {:url url :msg-ch msg-ch})
-  ;;(map->WebSocketSource {:url url :msg-ch msg-ch})
+  ;; (map->EventSource {:url url :msg-ch msg-ch})
+  (map->WebSocketSource {:url url :msg-ch msg-ch})
   )
 
 
