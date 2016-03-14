@@ -39,18 +39,9 @@
                          (if error (js/console.log (str "error: " error)))
                          (if message
                            (a/>! (:msg-ch cmp) message))
-                         ;; this infinite loop will block the browser unfortunately
-                         ;; (a/<! (a/timeout 1000))
                          (if msg ;; closed?
                            (recur)
                            :error))))))))))
-
-;; (defn ws-test []
-;;   (go
-;;     (let [{:keys [ws-channel]} (<! (ws-ch ws-url ))]
-;;       (if-let [wsc ws-channel]
-;;         (let [{:keys [message error]} (<! wsc)]
-;;           (js/console.log "Got message from server:" (pr-str message)))))))
 
 (defrecord EventSource [state url msg-ch listener-loop]
   component/Lifecycle

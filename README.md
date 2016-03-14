@@ -15,7 +15,6 @@ Add this to your `~/.lein/profiles.clj`
             [lein-git-deps "0.0.1-SNAPSHOT"]
 ```
 
-
 ## Usage
 
 See `src/userspace/core.clj` for intended usage example
@@ -100,15 +99,20 @@ After starting the repl
 
 ### Errors
 
-The websocket connection is commented out in favor of SSE for now.
 The SSE/websocket connection to the kafka consumer is very brittle. It
-might be possible that there are multiple consumers running which
-prevent the browser from getting messages. It might also be possible
-that the server and browser don't agree on the protocol (?). Both
-connections close and create errors and I don't have an answer for why
-right now. Hopefully you will be able to see the full lifecycle of a
-request to the processed state. If you do see errors the only answer
-right I have right now is to restart the whole repl.
+is possible to have multiple consumers running when using the
+EventSource(SSE) connection by simply reloading the browser. That is
+why the SSE connection will probably be removed (currently commented
+out on the client) in favor of the websocket connection. The websocket
+connection closes the kafka consumer when the connection to the
+browser is closed. Hopefully you will be able to see the full
+lifecycle of a request to the `:processed` state. If you do see errors
+the only answer right I have right now is to restart the whole repl.
+
+
+
+## Intended Design
+[![Precursor](https://precursorapp.com/document/Bones-Intended-Architecture-17592202986237.svg?auth-token=)](https://precursorapp.com/document/Bones-Intended-Architecture-17592202986237)
 
 
 
