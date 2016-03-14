@@ -104,15 +104,16 @@ After starting the repl
 
 ### Errors
 
-The SSE/websocket connection to the kafka consumer is very brittle. It
-is possible to have multiple consumers running when using the
-EventSource(SSE) connection by simply reloading the browser. That is
-why the SSE connection will probably be removed (currently commented
-out on the client) in favor of the websocket connection. The websocket
-connection closes the kafka consumer when the connection to the
-browser is closed. Hopefully you will be able to see the full
-lifecycle of a request to the `:processed` state. If you do see errors
-the only answer right I have right now is to restart the whole repl.
+The SSE/websocket connection to the kafka consumer is very brittle. If
+there is a websocket connection error in the browser, reload it works
+most times(?). Unfortunately, reloading an SSE connection will result
+in multiple consumers running. That is why the SSE connection will
+probably be removed (currently commented out on the client) in favor
+of the websocket connection. The websocket connection closes the kafka
+consumer when the connection to the browser is closed. Hopefully you
+will be able to see the full lifecycle of a request to the
+`:processed` state. If you do see errors the only answer right I have
+right now is to restart the whole repl.
 
 
 
