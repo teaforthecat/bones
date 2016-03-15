@@ -18,9 +18,6 @@
 
 (def ws-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output")
 
-(defn ws-channel [url]
-  (ws-ch  ws-url))
-
 (defrecord WebSocketSource [state url msg-ch listener-loop]
   component/Lifecycle
   (start [cmp]
@@ -31,9 +28,11 @@
       (do
         (println "starting websocket stream")
         (assoc cmp :stream
-               (go
-                   (if-let [websocket (:ws-channel (a/<! (ws-ch url)))]
+               (go-loop [reconnect-delay 1000]
+                 (let [{:keys [ws-channel error]} (a/<! (ws-ch url))]
+                   (if-let [websocket ws-channel]
                      (loop []
+                       (println "websocket connected")
                        (let [{:keys [message error] :as msg} (a/<! websocket)]
                          (if message (js/console.log (str "message: " message)))
                          (if error (js/console.log (str "error: " error)))
@@ -41,7 +40,12 @@
                            (a/>! (:msg-ch cmp) message))
                          (if msg ;; closed?
                            (recur)
-                           :error))))))))))
+                           :error)))
+                     (do
+                       (println error)
+                       (a/<! (a/timeout reconnect-delay))
+                       (println error)
+                       (recur (* reconnect-delay 1.5)))))))))))
 
 (defrecord EventSource [state url msg-ch listener-loop]
   component/Lifecycle

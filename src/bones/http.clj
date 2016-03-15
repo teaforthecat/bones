@@ -228,18 +228,11 @@
         connection @(aleph/websocket-connection req)
         incoming (ms/stream)]
     (log/info "handle-websocket-connection: connecting")
-    ;; (ms/on-closed connection #(a/put! shutdown-ch :shutdown))
     (ms/on-closed connection #(close-consumer consumer))
     (ms/on-closed connection #(log/info "handle-websocket-connection: closed"))
-    ;; (ms/put! connection "hello")
-    ;; (ms/consume #(log/info %) messages)
-    (d/catch
-        (ms/connect
-         messages
-         connection)
-        (fn [e] (throw e)))
-    ))
-
+    (ms/connect
+     messages
+     connection)))
 
 (defn make-fake-websocket-handler
   "a shim for testing only"
@@ -324,7 +317,8 @@
       {:formats [:json :edn]
        :api-key.name "AUTHORIZATION"
        :api-key.in "header"
-       :exceptions {:handlers {::ex/default api-ex-handler}}}
+       ;:exceptions {:handlers {::ex/default api-ex-handler}}
+       }
       (swagger-ui)
       (swagger-docs)
       (context* ~path []
