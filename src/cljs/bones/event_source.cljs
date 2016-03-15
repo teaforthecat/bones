@@ -44,7 +44,6 @@
                      (do
                        (println error)
                        (a/<! (a/timeout reconnect-delay))
-                       (println error)
                        (recur (* reconnect-delay 1.5)))))))))))
 
 (defrecord EventSource [state url msg-ch listener-loop]

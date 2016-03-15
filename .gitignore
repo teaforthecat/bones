@@ -13,3 +13,4 @@ resources/public/js/*
 /.repl/
 /figwheel_server.log
 /onyx.log
+/bones.log
