@@ -25,7 +25,7 @@
                         (println cur input)
                         (assoc cur :state (:action input)))
               :new (fn [cur input]
-                     (println cur input )
+                     ;;(println cur input )
                      (let [uuid (uuid/make-random-uuid)
                            response-reaction (subscribe [:form-state-q uuid])]
                        ;; todo tear down watcher somehow (?)
@@ -34,24 +34,34 @@
                            (assoc :response-reaction response-reaction)
                            (assoc :state (:action input)))))
               :submitted  (fn [cur input]
-                            (println cur input)
+                            ;; (println cur input)
                             (let [{:keys [message url]} input
                                   {:keys [uuid command]} cur]
                               (dispatch [:submit-form-tx command uuid url message])
                               )
                             (assoc cur :state (:action input)))
               :cancel  (fn [cur input]
-                         (println cur input )
+                         ;; (println cur input )
                          ;; it is important that it doesn't matter which goes first
                          ;;   - this cancel action or :hidden
                          ;; will be reset on :new
-                         (assoc cur :state (:action input))
+                         (if-let [response-reaction (get-in cur [:value :response-reaction])]
+                           (do
+                             (println "unwatching response-reaction")
+                             (remove-watch response-reaction :response-dispatcher)))
+                         (-> cur
+                             (dissoc :uuid)
+                             (assoc :state (:action input)))
                          )
               :error-sending (fn [cur input] (println cur input ) (assoc cur :state "error-sending"))
-              :waiting  (fn [cur input] (println cur input ) (assoc cur :state "waiting"))
-              :received  (fn [cur input] (println cur input ) (assoc cur :state "received"))
+              :waiting  (fn [cur input]
+                          ;;(println cur input )
+                          (assoc cur :state "waiting"))
+              :received  (fn [cur input]
+                           ;;(println cur input )
+                           (assoc cur :state "received"))
               :processed  (fn [cur input]
-                            (println cur input )
+                            ;; (println cur input )
                             (dispatch [:flash :success (:command cur)])
                             ;; will be reset on :new
                             (assoc cur :state (:action input)))
