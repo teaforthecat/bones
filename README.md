@@ -123,6 +123,9 @@ right now is to restart the whole repl.
 
 
 
+## clojurescript testing
+
+    lein doo phantom test
 
 
 ## License

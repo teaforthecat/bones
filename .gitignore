@@ -14,3 +14,5 @@ resources/public/js/*
 /figwheel_server.log
 /onyx.log
 /bones.log
+/.cljs_rhino_repl/
+out
