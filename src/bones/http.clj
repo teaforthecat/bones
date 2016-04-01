@@ -1,5 +1,6 @@
 (ns bones.http
   (:require [bones.kafka :as kafka]
+            [taoensso.carmine :as car]
             [bones.jobs :as jobs]
             [bones.log :as logger]
             [bones.serializer :refer [serialize deserialize]]
@@ -31,6 +32,20 @@
             [buddy.hashers :as hashers]
             [datascript.core :as ds]
             [byte-streams :as bs]))
+
+(defn redis-channel [user-id]
+  (str "jobs-output-" user-id))
+
+(def redis-uri "redis://127.0.0.1:6379")
+
+(def redis-conn {:spec {:uri redis-uri}})
+
+(defn subscribe-on [user-id stream]
+  (let [channel (redis-channel user-id)]
+    (car/with-new-pubsub-listener redis-conn
+      {channel #(ms/put! stream %)}
+      (car/subscribe channel))))
+
 
 
 (aleph.netty/set-logger! :log4j)
@@ -214,7 +229,8 @@
       consumer
       (let [msg-ch (a/chan)
             shutdown-ch (a/chan)
-            new-consumer (kafka/personal-consumer msg-ch shutdown-ch user-id topic)]
+            new-consumer (kafka/personal-consumer msg-ch shutdown-ch user-id topic)
+            ]
         (log/info "starting kafka consumer on topic: " topic)
         ;; (a/go (a/<! (a/timeout 10e3))
         ;;       (close-consumer consumer))
@@ -223,12 +239,16 @@
         new-consumer))))
 
 (defn handle-websocket-connection [req]
-  (let [{:keys [msg-ch shutdown-ch] :as consumer} (consumer-for req)
+  (let [ ;;{:keys [msg-ch shutdown-ch] :as consumer} (consumer-for req)
+        msg-ch (ms/stream)
+        user-id (get-in req [:identity :user :id])
+        consumer (subscribe-on user-id msg-ch)
         messages (ms/transform (map pr-str) (ms/->source msg-ch))
         connection @(aleph/websocket-connection req)
         incoming (ms/stream)]
+
     (log/info "handle-websocket-connection: connecting")
-    (ms/on-closed connection #(close-consumer consumer))
+    (ms/on-closed connection #(car/close-listener consumer))
     (ms/on-closed connection #(log/info "handle-websocket-connection: closed"))
     (ms/connect
      messages

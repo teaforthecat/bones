@@ -109,8 +109,8 @@
   "handle messages from the server - Server Sent Events"
   (let [{:keys [:uuid :input :output :job-sym]} message]
     (if uuid
+      ;; both update command and record events - just cause ?
       (dispatch [:update-command uuid :processed]))
-    ;; both update command and record events - just cause ?
     ;; todo provide a function to react to events
     [{:db/id -1 :event/message message}
      {:db/id -1 :event/uuid uuid}

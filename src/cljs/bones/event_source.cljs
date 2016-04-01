@@ -28,7 +28,7 @@
       (do
         (println "starting websocket stream")
         (assoc cmp :stream
-               (go-loop [reconnect-delay 1000]
+               (go-loop [reconnect-delay 1000 max-tries 5]
                  (let [{:keys [ws-channel error]} (a/<! (ws-ch url))]
                    (if-let [websocket ws-channel]
                      (loop []
@@ -37,14 +37,18 @@
                          (if message (js/console.log (str "message: " message)))
                          (if error (js/console.log (str "error: " error)))
                          (if message
-                           (a/>! (:msg-ch cmp) message))
+                           (let [[message-type key value] message]
+                             (if (= "message" message-type )
+                               (a/>! (:msg-ch cmp) value))))
                          (if msg ;; closed?
                            (recur)
                            :error)))
                      (do
                        (println error)
                        (a/<! (a/timeout reconnect-delay))
-                       (recur (* reconnect-delay 1.5)))))))))))
+                       (if (< 0 max-tries)
+                         (recur (* reconnect-delay 1.5) (dec max-tries))
+                         :reconnect-failed))))))))))
 
 (defrecord EventSource [state url msg-ch listener-loop]
   component/Lifecycle

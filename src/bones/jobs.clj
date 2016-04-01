@@ -45,6 +45,14 @@
    :onyx/max-peers 1 ;;testing peer configuration
    :onyx/type :function})
 
+(defn redis-publisher []
+  {:onyx/name :redis-publisher
+   :onyx/plugin :onyx.plugin.redis/writer
+   :onyx/type :output
+   :onyx/medium :redis
+   :redis/uri "redis://127.0.0.1:6379"
+   :onyx/batch-size 1})
+
 ;; todo refactor use map
 (defn kafka-lifecycle [input-task output-task]
   [{:lifecycle/task input-task
@@ -75,6 +83,7 @@
   [(topic-reader (topic-name-input job-sym))
    (topic-function job-sym)
    (topic-writer (ns-name-output job-sym))
+   (redis-publisher)
    ])
 
 (defn workflow [job-sym]
@@ -83,7 +92,9 @@
   (let [input (keyword (topic-name-input job-sym))
         output (keyword (ns-name-output job-sym))]
     [[input job-sym]
-     [job-sym output]]))
+     [job-sym :redis-publisher]
+     #_[job-sym output] ;; todo: how to tee segment stream to two outputs?
+     ]))
 
 (defn lifecycle [job-sym]
   (kafka-lifecycle (keyword (topic-name-input job-sym))
@@ -104,13 +115,13 @@
       (:zookeeper/address conf) (->
                                  (assoc-in [:catalog 0 :kafka/zookeeper]
                                            (:zookeeper/address conf))
-                                 (assoc-in [:catalog 2 :kafka/zookeeper]
+                                 #_(assoc-in [:catalog 2 :kafka/zookeeper]
                                            (:zookeeper/address conf)))
       (:kafka/deserializer-fn conf) (assoc-in [:catalog 0 :kafka/deserializer-fn]
                                               (:kafka/deserializer-fn conf))
 ;;fixme this 2 3 stuff needs to change
       (:kafka/serializer-fn conf) (->
-                                   (assoc-in [:catalog 2 :kafka/serializer-fn]
+                                   #_(assoc-in [:catalog 2 :kafka/serializer-fn]
                                                 (:kafka/serializer-fn conf)))
       (:onyx.task-scheduler conf) (assoc :task-scheduler
                                          (:onyx.task-scheduler conf)))))
@@ -122,19 +133,29 @@
   `(keyword (str *ns*) (str (quote ~name))))
 
 (defn job-middleware [job-sym job-fn]
-  "wraps input and output of function in an appropriate message for onyx-kafka"
+  "wraps input and output of function in an appropriate message for onyx-redis"
   (fn [segment]
     (let [kafka-key (:_kafka-key segment)
           uuid (:uuid segment)
           incoming-message (:message segment)
           ;; this is the fn call
           output (job-fn incoming-message)
-          ;; choose one command or job-sym
+          redis-key (str "jobs-output-" kafka-key)
           output-message {:command job-sym :job-sym job-sym :uuid uuid :output output :input incoming-message}
           ]
+
       ;; kafka partition should be based on key
-      {:message output-message
-       :key kafka-key})))
+      ;; {:message output-message
+      ;;  :key kafka-key}
+
+      ;; both onyk-kafka and onyx-redis ???????
+      {:op :publish
+       :args [redis-key output-message]
+
+       :message output-message
+       :key kafka-key
+       }
+      )))
 
 (defmacro defjob [name signature & form]
   `(def ~name

@@ -11,6 +11,7 @@
             [clj-kafka.zk :as zk]
             [clj-kafka.producer :as kp]
             [onyx.plugin.kafka] ;;must be in classpath
+            [onyx.plugin.redis] ;;must be in classpath
             [bones.conf :as conf]
             [bones.kafka]))
 
