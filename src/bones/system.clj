@@ -12,6 +12,7 @@
             [clj-kafka.producer :as kp]
             [onyx.plugin.kafka] ;;must be in classpath
             [onyx.plugin.redis] ;;must be in classpath
+            [onyx.plugin.core-async] ;;must be in classpath
             [bones.conf :as conf]
             [bones.kafka]))
 
@@ -86,14 +87,19 @@
     (if (empty? (:submitted-jobs cmp))
       (do
         (log/info "Starting Jobs")
-        (let [job-specs (:bones/jobs conf)
+        (let [command-job-specs (:bones/jobs conf)
+              background-job-specs (:bones/background-jobs conf)
               ;; assume zookeeper is already started
               pconf (assoc conf :zookeeper/server? false)
-              jobs (bones.jobs/build-jobs pconf (keys job-specs))]
-          (doseq [[job spec] job-specs]
+              command-jobs (bones.jobs/build-jobs pconf (keys command-job-specs))
+              background-jobs (bones.jobs/build-background-jobs pconf (keys background-job-specs))
+              job-specs (conj command-job-specs background-job-specs)
+              jobs (concat command-jobs background-jobs)]
+          (doseq [[job spec] command-job-specs]
             ;; create topics required by onyx.kafka plugin to exist
-            (bones.kafka/produce (bones.jobs/topic-name-input job) "init" {:segment "init"})
-            ;; this one is for the browser
+            ;; todo: we can check if the topic exists and use clj-kafka.admin functions
+            (bones.kafka/produce (bones.jobs/topic-name-input job) "init" {:segment "init"}))
+          (doseq [[job spec] background-job-specs]
             ;; this only needs to be done once per namespace, but more than once doesn't hurt
             (bones.kafka/produce (bones.jobs/ns-name-output job) "init" {:segment "init"}))
           (-> cmp

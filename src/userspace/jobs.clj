@@ -8,12 +8,15 @@
 
 (defjob who [message]
   (log/info "who message: " message)
-  {:b "Mr. Charles"})
+  {:b "Mr. Charles" :_background {:fn :userspace.jobs/extra-work :args {:animal "this-and-that"}}})
 
 (defjob where [message]
   (log/info "where message: " message)
   {:c "The Kitchen"})
 
+(defn extra-work [thing]
+  (log/info "extra-work args: " thing)
+  (assoc thing :this "is in the background"))
 
 (comment
 

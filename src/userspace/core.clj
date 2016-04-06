@@ -2,7 +2,7 @@
   (:require [bones.system :as system]
             [bones.http :as http]
             [userspace.jobs] ;;must be in classpath
-            [userspace.jobs-conf :refer [some-jobs]]
+            [userspace.jobs-conf :refer [some-jobs some-background-jobs]]
             [onyx.plugin.kafka] ;;must be in classpath
             [schema.core :as s]
             [com.stuartsierra.component :as component]
@@ -27,7 +27,8 @@
 (def sys (system/system {:conf-files ["resources/conf/test.edn"]
                          :http/handler #'userspace.core/handler
                          :bones.http/path "/api"
-                         :bones/jobs some-jobs}))
+                         :bones/jobs some-jobs
+                         :bones/background-jobs some-background-jobs}))
 
 
 (comment ;; various ways to start parts or all of the system

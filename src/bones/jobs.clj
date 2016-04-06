@@ -5,7 +5,8 @@
   (api/submit-jobs (bones.jobs/build-jobs {} [:x.y/fn]))
   (kafka/produce \"x.y..fn-input\" \"hello\")
   (kafka/consume \"x.y..fn-output\") => \"hello-yo\"
-  ")
+  "
+  (:require [clojure.core.async :as a]))
 
 (defn topic-reader [^String topic]
   "builds a catalog entry that reads from a kafka topic"
@@ -53,6 +54,15 @@
    :redis/uri "redis://127.0.0.1:6379"
    :onyx/batch-size 1})
 
+(defn core-async-writer [^String topic]
+  {:onyx/name (keyword topic)
+   :onyx/plugin :onyx.plugin.core-async/output
+   :onyx/type :output
+   :onyx/medium :core.async
+   :onyx/batch-size 1
+   :onyx/max-peers 1
+   :onyx/doc "Writes segments to a core.async channel"})
+
 ;; todo refactor use map
 (defn kafka-lifecycle [input-task output-task]
   [{:lifecycle/task input-task
@@ -79,11 +89,14 @@
 (defn ns-name-output [^clojure.lang.Keyword job-sym]
   (str (namespace job-sym ) "-output"))
 
+(defn task-name-results [^clojure.lang.Keyword job-sym]
+  (subs (str job-sym "-results") 1))
+
 (defn catalog [job-sym]
   [(topic-reader (topic-name-input job-sym))
    (topic-function job-sym)
-   (topic-writer (ns-name-output job-sym))
    (redis-publisher)
+   (topic-writer (ns-name-output job-sym))
    ])
 
 (defn workflow [job-sym]
@@ -93,7 +106,7 @@
         output (keyword (ns-name-output job-sym))]
     [[input job-sym]
      [job-sym :redis-publisher]
-     #_[job-sym output] ;; todo: how to tee segment stream to two outputs?
+     [job-sym output]
      ]))
 
 (defn lifecycle [job-sym]
@@ -101,30 +114,108 @@
                    (keyword (ns-name-output job-sym))
                    ))
 
-(defn build-default-job [job-sym]
+(def constantly-true (constantly true))
+
+(defn background-message?
+  "the function returned a :_background_message key that was intercepted,
+  and placed on :message for kafka, and it's value has :fn and :args keys"
+  [event old-segment new-segment all-new]
+  (let [{:keys [fn args] }  (:message new-segment)]
+    (and fn args)))
+
+(defn results-present?
+  "this is a wall to stop the flow of data. A background job can have any output, and
+  it may not be desirable to have anything output. An Onyx function task requires an output though.
+  With this test the flow can come to a stop. Or it can be used someother way (testing?)"
+  [event old-segment new-segment all-new]
+  (contains? new-segment :_results))
+
+(defn flow-conditions [job-sym]
+  [{:flow/from job-sym
+    :flow/to [(keyword (ns-name-output job-sym))]
+    :flow/predicate [::background-message?]
+    :flow/doc "Emits segment to kafka for background processing if :_background given"}
+   {:flow/from job-sym
+    :flow/to [:redis-publisher]
+    :flow/predicate ::constantly-true
+    :flow/doc "Always send result of command to user through redis."}
+   ])
+
+(defn results-condition [job-sym]
+  {:flow/from job-sym
+   :flow/to [(keyword (task-name-results job-sym))]
+   :flow/predicate [::results-present?]
+   :flow/doc "Emits segment to core-async channel if :_results present"})
+
+(defn command-job [job-sym]
   {:workflow (workflow job-sym)
    :catalog (catalog job-sym)
    :lifecycles (lifecycle job-sym)
+   :flow-conditions (flow-conditions job-sym)
    :task-scheduler :onyx.task-scheduler/balanced})
+
+(def results-chan
+  "a receiver to satisfy :onyx/fn's need for an output, opt-in usage,
+you'll have to create another task to use this I think"
+  (a/chan (a/dropping-buffer 100)))
+
+(defn inject-results-ch [event lifecycle]
+  {:core.async/chan results-chan})
+
+(def writer-calls
+  {:lifecycle/before-task-start inject-results-ch})
+
+(defn background-job [job-sym]
+  ;; input and output are kind of reversed here
+  ;; reader <- output for example
+  (let [reader-str (ns-name-output job-sym)
+        input-task (keyword reader-str)
+        writer-str (task-name-results job-sym)]
+    {:workflow [[input-task job-sym]
+                [job-sym (keyword writer-str)]]
+     :catalog [(topic-reader reader-str)
+               (topic-function job-sym)
+               (core-async-writer writer-str)]
+     :lifecycles [{:lifecycle/task input-task
+                   :lifecycle/calls :onyx.plugin.kafka/read-messages-calls}
+                  {:lifecycle/task (keyword writer-str)
+                   :lifecycle/calls ::writer-calls}
+                  {:lifecycle/task (keyword writer-str)
+                   :lifecycle/calls :onyx.plugin.core-async/writer-calls}]
+     :flow-conditions [(results-condition job-sym)]
+     :task-scheduler :onyx.task-scheduler/balanced}))
+
+(defn configure-job [conf job]
+  (cond-> job
+    (:zookeeper/address conf) (->
+                               (assoc-in [:catalog 0 :kafka/zookeeper]
+                                         (:zookeeper/address conf)))
+    ;;these < 3 checks are really command-job? (and not background-job?) checks
+    (and (:zookeeper/address conf)
+         (< 3 (count (:catalog job)))) (->
+                                        (assoc-in [:catalog 3 :kafka/zookeeper]
+                                                  (:zookeeper/address conf)))
+    (:kafka/deserializer-fn conf) (assoc-in [:catalog 0 :kafka/deserializer-fn]
+                                            (:kafka/deserializer-fn conf))
+    ;;fixme this 0 3 stuff needs to change
+    (and (:kafka/serializer-fn conf)
+         (< 3 (count (:catalog job)))) (->
+                                         (assoc-in [:catalog 3 :kafka/serializer-fn]
+                                                   (:kafka/serializer-fn conf)))
+    (:onyx.task-scheduler conf) (assoc :task-scheduler
+                                       (:onyx.task-scheduler conf))))
+
+(defn build-background-job [conf job-sym]
+  "here we combine the configurable bits with the built bits"
+  (configure-job conf (background-job job-sym)))
 
 ;; todo look into using the traversy library here
 (defn build-configured-job [conf job-sym]
   "here we combine the configurable bits with the built bits"
-  (let [job (build-default-job job-sym)]
-    (cond-> job
-      (:zookeeper/address conf) (->
-                                 (assoc-in [:catalog 0 :kafka/zookeeper]
-                                           (:zookeeper/address conf))
-                                 #_(assoc-in [:catalog 2 :kafka/zookeeper]
-                                           (:zookeeper/address conf)))
-      (:kafka/deserializer-fn conf) (assoc-in [:catalog 0 :kafka/deserializer-fn]
-                                              (:kafka/deserializer-fn conf))
-;;fixme this 2 3 stuff needs to change
-      (:kafka/serializer-fn conf) (->
-                                   #_(assoc-in [:catalog 2 :kafka/serializer-fn]
-                                                (:kafka/serializer-fn conf)))
-      (:onyx.task-scheduler conf) (assoc :task-scheduler
-                                         (:onyx.task-scheduler conf)))))
+  (configure-job conf (command-job job-sym)))
+
+(defn build-background-jobs [conf jobs]
+  (mapv (partial build-background-job conf) jobs))
 
 (defn build-jobs [conf jobs]
   (mapv (partial build-configured-job conf) jobs))
@@ -135,24 +226,25 @@
 (defn job-middleware [job-sym job-fn]
   "wraps input and output of function in an appropriate message for onyx-redis"
   (fn [segment]
-    (let [kafka-key (:_kafka-key segment)
+    (let [;; coming from kafka
+          kafka-key (:_kafka-key segment)
           uuid (:uuid segment)
           incoming-message (:message segment)
           ;; this is the fn call
-          output (job-fn incoming-message)
+          _output (job-fn incoming-message)
+          ;; maybe going to kafka
+          background-message (:_background _output)
+          ;; definitely going to redis
+          output (dissoc _output :_background)
           redis-key (str "jobs-output-" kafka-key)
           output-message {:command job-sym :job-sym job-sym :uuid uuid :output output :input incoming-message}
           ]
 
-      ;; kafka partition should be based on key
-      ;; {:message output-message
-      ;;  :key kafka-key}
-
-      ;; both onyk-kafka and onyx-redis ???????
+      ;; always go to redis, only go to kafka if background-message
       {:op :publish
        :args [redis-key output-message]
 
-       :message output-message
+       :message background-message
        :key kafka-key
        }
       )))

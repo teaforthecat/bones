@@ -10,3 +10,7 @@
    :userspace.jobs/where {:name s/Str
                           :room-number s/Int}}
   )
+
+
+(def some-background-jobs
+  {:userspace.jobs/extra-work {:animal s/Str}})
