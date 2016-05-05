@@ -44,6 +44,9 @@
                  (when (not= new-result @state-atom)
                    (reset! state-atom new-result))))))
 
+(defn unbind [q given]
+  (d/unlisten! @conn (unique-key q given)))
+
 (defrecord Reaction [question state-atom tx-pred]
   IDeref
   (-deref [this]

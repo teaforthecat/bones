@@ -107,7 +107,8 @@
       :body canary})))
 
 (s/defschema QueryResult
-  {:results s/Any})
+  {:results [{s/Any s/Any}]
+   :num-found s/Int})
 
 (def users
   [  {:username "admin"
@@ -173,8 +174,8 @@
       (ok kafka-response) ;; return result of produce
       (service-unavailable "command has not been received"))))
 
-(defn query-handler [query]
-  (ok {:results "HI!"}))
+;; (defn query-handler [query]
+;;   (ok {:results "HI!"}))
 
 
 
@@ -325,7 +326,7 @@
                           :stacktrace (take 3 (map prone.stacks/normalize-frame (.getStackTrace error) ))
                           :class (.getName (.getClass error))}))
 
-(defn cqrs [path jobs]
+(defn cqrs [path jobs query-handler]
   (let [fn-outputs (map (comp bones.jobs/topic-name-output first) jobs)
         ;;; todo support multiple namespaces - oh my
         general-outputs (map (comp bones.jobs/ns-name-output first) jobs)
@@ -361,11 +362,12 @@
                         (ws-handler ~'req)
                         (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/query" {:as ~'req}
-                      :query-params [~'query :- s/Any]
-                      :return QueryResult
+                      :query-params [~'q :- s/Str ~'index :- s/Str ~'start :- s/Int ~'limit :- s/Int]
+                      ;; :return QueryResult
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
+                      (log/info "query request" ~'req)
                       (if (~'buddy.auth/authenticated? ~'req)
-                        (query-handler ~'query)
+                        (ok (~'query-handler (clojure.walk/keywordize-keys (:query-params ~'req))))
                         (~'ring.util.http-response/unauthorized "Valid Auth Token required"))))
       (POST* "/login" {:as ~'req}
          :tags ["login"]
@@ -377,6 +379,7 @@
 
 (s/defschema HandlerConf
   {:bones.http/path s/Str
+   ;; :bones.http/query-handler (s/protocol clojure.lang.IFn)
    :bones/jobs {s/Keyword (s/protocol s/Schema)}
    s/Any s/Any})
 
@@ -397,12 +400,13 @@
 
 (defn build-handler [conf]
   (s/validate HandlerConf conf)
-  (let [{:keys [:bones.http/path :bones/jobs]} conf]
+  (let [{:keys [:bones.http/path :bones.http/query-handler
+                :bones/jobs]} conf]
     (all-cors
      (logger/wrap-with-body-logger
       (cookie-session-middleware
        (wrap-authentication
-        (eval (cqrs path jobs))
+        (eval (cqrs path jobs query-handler))
         auth-backend
         cookie-session-backend)
        )))))

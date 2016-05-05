@@ -35,10 +35,14 @@
                  [jarohen/chord "0.7.0"]
                  ;; add once merged: https://github.com/ztellman/automat/pull/31
                  ;; [automat "0.1.3"]
+                 [com.basho.riak/riak-client "2.0.4"]
+                 [kria "0.1.16"]
                  [petrol "0.1.3"]
+                 ;; [com.datomic/datomic-pro "0.9.5206"]
                  ]
 
-
+  ;; :repositories {"my.datomic.com" {:url "https://my.datomic.com/repo"
+  ;;                                  :creds :gpg}}
   ;; clojars was temporarily down
   ;; :repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]
   ;; :plugins-repositories [["clojars" "https://clojars-mirror.tcrawley.org/repo/"]]

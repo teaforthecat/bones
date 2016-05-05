@@ -8,6 +8,29 @@
             [bones.forms]
             [re-frame.core :refer [subscribe dispatch]]))
 
+;; todo: write search text box
+(defn riak-search [search-fn]
+  [:div.search
+   [:label {:for :limit} "limit"]
+   [:input {:id :limit :field :numeric}]
+   [:label {:for :start} "start"]
+   [:input {:id :start :field :numeric}]
+   [:label {:for :index} "index"]
+   [:select {:id :index :field :list}
+    [:option {:key "wat"} "wat"]
+    [:option {:key "who"} "who"]
+    [:option {:key "where"} "where"] ]
+   [:label {:for :search} "q"]
+   [:input {:id :q :field :text}]
+   [:button {:on-click search-fn} "Search"]])
+
+(defn search-box []
+  (let [form-data (reagent/atom {:limit 5 :start 0 :q "*:*"})
+        submit-fn #(dispatch [:search-box @form-data])
+        fields (riak-search submit-fn)]
+    (fn []
+      (bind-fields fields form-data))))
+
 ;; for demo only
 (defn yes-button []
   [:div  {:class "button-class"
@@ -38,6 +61,13 @@
             )
           )
         (into [:ul.messages] (map message-li (flatten res)))))))
+
+(defn search-results []
+  (let [results (subscribe [:search-results])]
+    (fn []
+      [:div.search-results
+       (reduce conj [:ul]
+               (map (fn [r] [:li (pr-str r)]) @results))])))
 
 ;; for demo only
 (defn click-count []
@@ -222,6 +252,8 @@
    [bones/login-form]
    [yes-button]
    [click-count]
+   [search-box]
+   [search-results]
    ;; WIP
    ;; [toggled-form [:ui-q :userspace.jobs/wat]
    ;;  [form-for :userspace.jobs/wat {:weight-kg {:aria "Must be a Number"}} {:weight-kg 0}]

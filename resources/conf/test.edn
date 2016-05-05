@@ -18,4 +18,6 @@
  :onyx.peer/n-peers 12
  ;; :onyx.log/file "onyx.log"
  ;; :onyx.log/config {...}
+ :riak/host "127.0.0.1"
+ :riak/port 8087
  }

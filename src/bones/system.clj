@@ -211,28 +211,29 @@
         cmp))))
 
 (defn system [config]
-  (atom (component/system-map
-         :conf (conf/map->Conf (assoc config
-                                      :sticky-keys (keys config)
-                                      :mappy-keys [[:zookeeper-addr :zookeeper/address]]))
-         :http (component/using
-                (map->HTTP {})
-                [:conf])
-         :zookeeper (component/using
-                     (map->ZK {}) ;; gets config from conf
-                     [:conf])
-         :kafka (component/using
-                 (map->Kafka {})
-                 [:zookeeper :conf])
-         :onyx-peer-group (component/using
-                           (map->OnyxPeerGroup {}) ;; gets conf from conf
-                           [:kafka :conf])
-         :onyx-peers (component/using
-                      (map->OnyxPeers {:n-peers 4})
-                      [:onyx-peer-group :conf])
-         :jobs (component/using
-                (map->Jobs {})
-                [:onyx-peers :conf]))))
+  (component/system-map
+   :conf (conf/map->Conf (assoc config
+                                :sticky-keys (keys config)
+                                :mappy-keys [[:zookeeper-addr :zookeeper/address]]))
+   :http (component/using
+          (map->HTTP {})
+          [:conf])
+   :zookeeper (component/using
+               (map->ZK {}) ;; gets config from conf
+               [:conf])
+   :kafka (component/using
+           (map->Kafka {})
+           [:zookeeper :conf])
+   :onyx-peer-group (component/using
+                     (map->OnyxPeerGroup {}) ;; gets conf from conf
+                     [:kafka :conf])
+   :onyx-peers (component/using
+                (map->OnyxPeers {:n-peers 4})
+                [:onyx-peer-group :conf])
+   :jobs (component/using
+          (map->Jobs {})
+          [:onyx-peers :conf])
+   ))
 
 (defn start-system [system & components]
   (swap! system component/update-system components component/start))

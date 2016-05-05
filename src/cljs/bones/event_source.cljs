@@ -3,18 +3,13 @@
                    [schema.core :as s])
   (:require [com.stuartsierra.component :as component]
             [cljs.core.async :as a]
-            [cljs-http.client :as http]
+            [bones.client.http :as http]
             [chord.client :refer [ws-ch]]))
-;; this could move
-(defn post [url data]
-  (go
-    (let [resp (<! (http/post url  {:edn-params data}))]
-      resp)))
 
 ;; this needs to be configurable duh
 (defn close-consumers []
   (println "closing consumers")
-  (post "http://localhost:3000/api/events/close" {}))
+  (http/post "http://localhost:3000/api/events/close" {}))
 
 (def ws-url "ws://localhost:3000/api/ws?topic=userspace.jobs-output")
 
@@ -101,8 +96,10 @@
 
 (defn event-source [url msg-ch]
   ;; (map->EventSource {:url url :msg-ch msg-ch})
-  (map->WebSocketSource {:url url :msg-ch msg-ch})
-  )
+  ;; (let [websocket (http/listen url)]
+  ;;   (go-loop [mchan (get @http/conn "onmessage")]
+  ;;     (>! msg-ch (<! mchan))))
+  (map->WebSocketSource {:url url :msg-ch msg-ch}))
 
 
 

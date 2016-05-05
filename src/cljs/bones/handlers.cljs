@@ -55,6 +55,35 @@
             ;; maybe report field level errors?
             (swap! form-ratom assoc :errors {:message message})))))))
 
+
+(defn dispatch-search [form-data]
+  (go (let [url "http://localhost:3000/api/query"
+            resp (<! (http/get url {:query-params form-data}))]
+        (if (= 200 (:status resp))
+          (dispatch [:search-results (:body resp)])
+          (dispatch [:search-error (:body resp)])))))
+
+(defn search-box-handler [db [form-data]]
+  (let [results (datascript.core/q '{:find [?e]
+                                     :where [[?e :search-box true]]
+                                     }
+                                   db)
+        existing (map first results)]
+    (dispatch-search form-data)
+    (reduce conj []
+            (map (fn [id] [:db.fn/retractEntity id]) existing))))
+
+(defn search-result-tx [id result]
+  [{:db/id id :search-box true}
+   {:db/id id :search-box/result result}])
+
+(defn search-results-handler [db [resp]]
+  (let [{:keys [results num-found]} resp
+        tx-ids (range (- (count results)) 0)]
+    (reduce into []
+            (map search-result-tx tx-ids results))))
+
+
 (re-frame.core/register-handler
  :wat-button-clicked
  []
@@ -103,6 +132,7 @@
 
 (defn inc-click-count [db]
   [[:db.fn/call db/attr-inc :click-count]])
+
 
 ;; hmm, positional args
 (defn receive-event-stream [db [message msg-number]]
@@ -172,6 +202,10 @@
             [(< ?number ?max)]]
     })
 
+(def search-results-q
+  '{:find [?r]
+    :where [[?e :search-box/result ?r]]})
+
 (def reactive-queries
   {:get-login-token '[:find ?token
                       :where [100 :bones/token ?token]]
@@ -182,8 +216,11 @@
    :submitted-forms-q submitted-forms-q
    :ui-q ui-q
    :form-state-q form-state-q
+   :search-results search-results-q
    }
   )
+
+
 
 ;; TODO use record here
 (defn submit-form-tx [db [name uuid url message]]
@@ -286,6 +323,8 @@
    :add-errors-form add-errors-form
    :add-processed-form add-processed-form
    :update-command update-command
+   :search-box search-box-handler
+   :search-results search-results-handler
    :ui ui})
 
 (defn setup []
