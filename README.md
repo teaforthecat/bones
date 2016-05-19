@@ -32,10 +32,10 @@ See `src/userspace/core.clj` for intended usage example
 
 
 ## So far so good
-After starting the repl
-### Swagger UI
-
-visit `localhost:3000`
+After starting the repl, follow the steps below to test and explore a working
+proof of concept. In theory you would be able to enter some data and execute a
+query to retrieve it. There is seed data for users and some ad-hoc nonsense
+around to provide something to follow in the code base.
 
 
 ## UI
@@ -50,6 +50,11 @@ After starting the repl
 6. click "Yes" to see that the counter works
 7. click "Add who" fill in some values and click submit
 8. see the state of the form go through these phases `new -> received -> processed`. It will be pretty fast. If you don't see `proccessed` there was a problem.
+
+### Swagger UI
+
+visit `localhost:3000`
+
 
 ## Command Line version (for looks only)
 
