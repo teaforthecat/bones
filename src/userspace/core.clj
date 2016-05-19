@@ -1,5 +1,7 @@
 (ns userspace.core
   (:require [bones.system :as system]
+            [userspace.system :refer [sys]]
+            [taoensso.timbre :as log]
             [bones.http :as http]
             [userspace.system :refer [sys]]
             [taoensso.timbre :as log]
@@ -13,6 +15,7 @@
             [com.stuartsierra.component :as component]
             [compojure.core :as cj]
             ))
+
 
 (def users
   [  {:username "admin"
@@ -35,21 +38,22 @@
                                   :bones.http/query-handler #'query-handler
                                   }))
 
+(def conf-files ["resources/conf/test.edn"])
 
-(reset! sys (system/system {:conf-files ["resources/conf/test.edn"]
-                            :http/handler #'userspace.core/handler
-                            :bones.http/path "/api"
-                            :bones/jobs some-jobs
-                            :bones/background-jobs some-background-jobs}))
+(comment
 
-(swap! sys assoc :riak (component/using
-                                       (bones.db.riak/map->Riak {:indexes userspace.jobs-conf/some-riak-search-indexes
-                                                                 :buckets userspace.jobs-conf/some-riak-buckets})
-                                       [:conf]))
-(system/start-system sys :riak :conf)
+  (reset! sys (system/system {:conf-files ["resources/conf/test.edn"]
+                              :http/handler #'userspace.core/handler
+                              :bones.http/path "/api"
+                              :bones/jobs some-jobs
+                              :bones/background-jobs some-background-jobs}))
 
 
-(comment ;; various ways to start parts or all of the system
+  )
+
+
+(comment
+  ;; various ways to start parts or all of the system
 
 (seed)
 

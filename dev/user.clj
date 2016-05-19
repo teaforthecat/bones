@@ -2,35 +2,40 @@
   (:import [com.google.protobuf ByteString])
   (:require [figwheel-sidecar.repl-api :as ra]
             [bones.system :as system]
-            [clojure.data.json :as json]
-            [kria.client :as client]
-            [kria.index :as index]
-            [kria.schema :as schema]
-            [kria.bucket :as bucket]
-            [kria.conversions :refer [byte-string?
-                                      byte-string<-utf8-string
-                                      utf8-string<-byte-string]]
-            [kria.object :as o]
-            [kria.search :as s]
-            [kria.map-reduce :as mr]
+            [bones.db.riak :refer [->Riak]]
             [com.stuartsierra.component :as component]
-            [userspace.core])
-           )
+            [userspace.system :refer [sys]]
+            [userspace.jobs-conf :refer [some-jobs
+                                         some-background-jobs
+                                         some-riak-search-indexes
+                                         some-riak-buckets]]
+            [userspace.core :as core]))
 
 (defn bootup []
-  (system/start-system userspace.system/sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+  (reset! sys (system/system {:conf-files core/conf-files
+                              :http/handler #'core/handler
+                              :bones.http/path "/api"
+                              :bones/jobs some-jobs
+                              :bones/background-jobs some-background-jobs}))
+  (system/start-system sys :jobs :http :onyx-peers :onyx-peer-group :zookeeper :kafka :conf)
+  ;; this is part of the user-chosen database integration
+  (swap! sys assoc :riak (component/using
+                          ;; fixme: :x is a placeholder for the connection
+                          (->Riak :x some-riak-search-indexes some-riak-buckets)
+                          [:conf]))
+  (system/start-system sys :riak :conf)
   (userspace.core/seed))
 
 (defn bootdown []
-  (system/stop-system userspace.system/sys))
+  (system/stop-system sys))
 
 
 (defn start []
-  (system/start-system userspace.system/sys :http :conf)
+  (system/start-system sys :http :conf)
   (ra/start-figwheel!))
 
 (defn stop []
-  (system/stop-system userspace.system/sys :http :conf)
+  (system/stop-system sys :http :conf)
   (ra/stop-figwheel!))
 
 (defn cljs [] (ra/cljs-repl "dev"))

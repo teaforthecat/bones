@@ -120,9 +120,11 @@
   [conn idx q opts]
   {:pre [(string? idx) (byte-string? q) (map? opts)]}
   (let [p (promise)]
-    (solr/search conn idx q opts (cb-fn p))
+    (if (.isOpen conn)
+      (solr/search conn idx q opts (cb-fn p))
+      (deliver p [nil {:error "not connected to Riak"} {}]))
     (let [[asc e {:keys [docs num-found]}]  @p]
-      (println e)
+      (if e (println e))                ;todo: handle errors
       {:docs (parse-search-results docs)
        :num-found num-found})))
 

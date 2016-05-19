@@ -266,7 +266,6 @@
 (defn ws-handler [req]
   "a websocket connection to the client stays open here"
   (if-let [user-id (get-in req [:identity :user :id])]
-    ;; also [:params :topic]
     (handle-websocket-connection req)
     (do
       ;; if this happens there is something wrong on our side
@@ -356,7 +355,6 @@
                         (events-handler ~'topic ~'req)
                         (~'ring.util.http-response/unauthorized "Authentication Token required")))
                 (GET* "/ws" {:as ~'req}
-                      :query-params [~'topic :- ~@outputs-enum]
                       :header-params [{~'AUTHORIZATION "Token: xyz"}]
                       (if (~'buddy.auth/authenticated? ~'req)
                         (ws-handler ~'req)
