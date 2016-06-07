@@ -19,7 +19,7 @@ Add this to your `~/.lein/profiles.clj`
 
 
 Required Services:
-- Riak
+- Riak (with search enabled) sorry, docker image coming soon...
 - Redis
 
 ### homebrew
