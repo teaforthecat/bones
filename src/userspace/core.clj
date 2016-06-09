@@ -99,12 +99,17 @@
 
 ;; hmm, on initialization? - sure
 (.build-indexes (:riak @sys))
+
 (.build-buckets (:riak @sys))
+
 (:conn (:riak @sys))
+
 (:buckets (:riak @sys))
+
 (:indexes (:riak @sys))
 
 (.put (:riak @sys) "wat" "abcd1234" {:x 1})
+
 (.put (:riak @sys) "wat" "abcd12345" {:weight-kg 1
                                      :name "steven"})
 

@@ -5,9 +5,9 @@ Basically an implementation of the design mentioned here: [From REST to CQRS](ht
 
 ## Prerequisites
 
-Leiningen 2.6.1
+- Leiningen 2.6.1
 
-Leiningen plugin: git-deps
+- Leiningen plugin: git-deps
 Add this to your `~/.lein/profiles.clj`
 ```
 {:user
@@ -15,10 +15,24 @@ Add this to your `~/.lein/profiles.clj`
             [lein-git-deps "0.0.1-SNAPSHOT"]
 ```
 
+- Java 8 !!!
+
+
 Required Services:
 - Riak
 - Redis
 
+### homebrew
+
+    brew install riak
+    edit /usr/local/Cellar/riak/2.1.3/libexec/etc/riak.conf
+    change `search = off` to `search = on`
+    riak start
+
+    brew install redis
+    redis start
+
+Not required:
 These services are managed and run on or forked from the java process started by
 this project in development mode:
 - Aeron
@@ -28,6 +42,7 @@ this project in development mode:
 
 ## Usage
 
+clone this repo.
 See `src/userspace/core.clj` for intended usage example
 
 
@@ -41,6 +56,7 @@ around to provide something to follow in the code base.
 ## UI
 ### Testing the form
 After starting the repl
+`$ lein repl`
 
 1. `(bootup)` ;; starts onyx for back end
 2. `(start)` ;; starts figwheel for front end

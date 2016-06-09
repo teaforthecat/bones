@@ -229,7 +229,7 @@
    true
    schema))
 
-
+;; todo maybe catch java.io.IOException
 (defn riak-search [riak-conn index query opts]
   (let [schema (get-in riak-conn [:indexes index])
         parser (riak-search-coercion (assoc schema s/Any s/Any))

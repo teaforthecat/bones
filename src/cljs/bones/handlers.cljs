@@ -151,7 +151,6 @@
      ]))
 
 (defn update-command [db [uuid state & response-messages]]
-  ;; or could query db, then create transaction
   (let [result (datascript.core/q '{:find [?e]
                                     :in [$ ?uuid]
                                     :where [[?e :bones.command/uuid ?uuid]]}
