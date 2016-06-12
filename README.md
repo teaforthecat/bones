@@ -12,13 +12,14 @@ Add this to your `~/.lein/profiles.clj`
 ```
 {:user
  {:plugins [
-            [lein-git-deps "0.0.1-SNAPSHOT"]
+            [lein-git-deps "0.0.2"]
 ```
 
 - Java 8 !!!
 
 
 Required Services:
+
 - Riak (with search enabled) sorry, docker image coming soon...
 - Redis
 
@@ -42,7 +43,8 @@ this project in development mode:
 
 ## Usage
 
-clone this repo.
+clone this repo
+
 See `src/userspace/core.clj` for intended usage example
 
 
@@ -63,7 +65,8 @@ After starting the repl
 3. visit localhost:3000 to see the swagger api
 4. or go straight to the spa at localhost:3449
 5. login with "jerry:jerry"
-6. click "Yes" to see that the counter works
+6. click "Click Me!" to see that the counter works, which means reagent is
+   working properly
 7. click "Add who" fill in some values and click submit
 8. see the state of the form go through these phases `new -> received -> processed`. It will be pretty fast. If you don't see `proccessed` there was a problem.
 
@@ -72,7 +75,7 @@ After starting the repl
 visit `localhost:3000`
 
 
-## Command Line version (for looks only)
+## Command Line version (here for documentation only)
 
 1. `(bootup)` ;; starts onyx for back end
 2. `(start)` ;; starts figwheel for front end
@@ -90,7 +93,7 @@ curl localhost:3000/login -X POST -H "Accept: application/edn" -H "Content-Type:
 export TOKEN=eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.3P4Xc_6tWAvituAEjfoL_E6XQBdMj-dj.k5y63h1m8TaEq9z4.mGHxq44UDhdGImxa3uGePgH24PNp_FqNhPhesogii2McEEQUInOoW6z4geyoz7AMsp6YrXlakQ.zdCqFcxi6vcYDXayi-RmpQ
 ```
 
--Create an SSE connection and listen for the output of onyx jobs on a kafka topic-
+Create an SSE connection and listen for the output of onyx jobs on a kafka topic-
 This isn't supported anymore. I left it here so you could see what the data
 looks like. We're using a Websocket connection to Redis instead and I don't have
 a command line version of that connection.
@@ -143,8 +146,8 @@ curl 'http://localhost:3000/login' -X OPTIONS -H 'Access-Control-Request-Method:
 ### Errors
 
 Hopefully you will be able to see the full lifecycle of a
-request to the `:processed` state. If you do see errors the only answer right I
-have right now is to restart the whole repl.
+request to the `:processed` state. If you do see errors the only answer I
+have right now is to restart the whole repl. Please let me know if you do see errors.
 
 
 
