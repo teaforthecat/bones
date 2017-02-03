@@ -1,5 +1,6 @@
-# bones
-![icon](https://github.com/teaforthecat/bones/blob/master/icon.png)
+# ![icon](https://github.com/teaforthecat/bones/blob/master/icon.png)
+
+
 A work-in-progress CQRS/Rest frameworky thing.
 
 The goal is to provide an easy way to get started writing clojure apps that will
