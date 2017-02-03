@@ -1,170 +1,71 @@
 # bones
 
-A work-in-progress CQRS/Rest frameworky thing. Backed by [Onyx](https://github.com/onyx-platform/onyx).
-Basically an implementation of the design mentioned here: [From REST to CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA)
+A work-in-progress CQRS/Rest frameworky thing.
 
-## Prerequisites
+The goal is to provide an easy way to get started writing clojure apps that will
+be immediately scalable in the throughput dimension as well as the code/behavior
+dimension. Authentication is the first thing generally done when building a web
+app so authentication is included. The components of this framework are designed
+to be stand-alone libraries that are also designed to fit together. There could
+be a library that composes the component libraries. For now, they assist with
+the plumbing of building an app. You design your data with specs and provide
+handler functions. These libraries will connect those functions.
 
-- Leiningen 2.6.1
+These are the components::
 
-- Leiningen plugin: git-deps
-Add this to your `~/.lein/profiles.clj`
-```
-{:user
- {:plugins [
-            [lein-git-deps "0.0.2"]
-```
+- [bones.http](https://github.com/teaforthecat/bones-http)
+- [bones.client](https://github.com/teaforthecat/bones-client)
+- [bones.editable](https://github.com/teaforthecat/bones-editable)
+- [bones.conf](https://github.com/teaforthecat/bones-conf)
 
-- Java 8 !!!
+Examples:
 
+- [todomvc](https://github.com/teaforthecat/bones-todomvc)
+- [app using kafka as db](https://github.com/teaforthecat/weather-report)
 
-Required Services:
+The design goal is to basically combine these libraries and add a data api:
 
-- Riak (with search enabled) sorry, docker image coming soon...
-- Redis
-
-### homebrew
-
-    brew install riak
-    edit /usr/local/Cellar/riak/2.1.3/libexec/etc/riak.conf
-    change `search = off` to `search = on`
-    riak start
-
-    brew install redis
-    redis start
-
-Not required:
-These services are managed and run on or forked from the java process started by
-this project in development mode:
-- Aeron
-- Zookeeper
-- Kafka
+- [re-frame](https://github.com/Day8/re-frame).
+- [yada](https://github.com/juxt/yada).
+- [Onyx](https://github.com/onyx-platform/onyx).
 
 
-## Usage
+Influenced by:
 
-clone this repo
+- [From REST to CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA)
+- [Designing with Data](https://www.youtube.com/watch?v=kP8wImz-x4w)
+- [Everything Will Flow](https://www.youtube.com/watch?v=1bNOO3xxMc0)
 
-See `src/userspace/core.clj` for intended usage example
+Aspiring to be:
 
-
-## So far so good
-After starting the repl, follow the steps below to test and explore a working
-proof of concept. In theory you would be able to enter some data and execute a
-query to retrieve it. There is seed data for users and some ad-hoc nonsense
-around to provide something to follow in the code base.
+- [Hoplon](http://hoplon.io/)
+- [Untangled](http://untangled-web.github.io/untangled/)
 
 
-## UI
-### Testing the form
-After starting the repl
-`$ lein repl`
+Yet to be built:
 
-1. `(bootup)` ;; starts onyx for back end
-2. `(start)` ;; starts figwheel for front end
-3. visit localhost:3000 to see the swagger api
-4. or go straight to the spa at localhost:3449
-5. login with "jerry:jerry"
-6. click "Click Me!" to see that the counter works, which means reagent is
-   working properly
-7. click "Add who" fill in some values and click submit
-8. see the state of the form go through these phases `new -> received -> processed`. It will be pretty fast. If you don't see `proccessed` there was a problem.
+There does exist a tiny library called `bones.jobs` but I'd like to expand that
+to support the combination of Onyx and the `bones.http` library. (see diagram below)
 
-### Swagger UI
+- [bones.stream](#) (Onyx Wrapper)
 
-visit `localhost:3000`
+The plan is for this frameworky thing to embrace systems by offering support
+for Kafka and Redis; two integral parts of of this web app architecture. It
+would make sense to help with the provisioning of these systems, so maybe
+another library could come about doing that.
 
-
-## Command Line version (here for documentation only)
-
-1. `(bootup)` ;; starts onyx for back end
-2. `(start)` ;; starts figwheel for front end
-3. Then login with "jerry:jerry" as below to get a token
-4. Then setup an SSE event listener
-5. Then post to a command
-6. See the output on the event listener
-
-Get an api token using seed data
-```bash
-
-curl localhost:3000/login -X POST -H "Accept: application/edn" -H "Content-Type: application/edn" -d '{:username "jerry" :password "jerry"}'
-
-{:token "eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.3P4Xc_6tWAvituAEjfoL_E6XQBdMj-dj.k5y63h1m8TaEq9z4.mGHxq44UDhdGImxa3uGePgH24PNp_FqNhPhesogii2McEEQUInOoW6z4geyoz7AMsp6YrXlakQ.zdCqFcxi6vcYDXayi-RmpQ"}
-export TOKEN=eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.3P4Xc_6tWAvituAEjfoL_E6XQBdMj-dj.k5y63h1m8TaEq9z4.mGHxq44UDhdGImxa3uGePgH24PNp_FqNhPhesogii2McEEQUInOoW6z4geyoz7AMsp6YrXlakQ.zdCqFcxi6vcYDXayi-RmpQ
-```
-
-Create an SSE connection and listen for the output of onyx jobs on a kafka topic-
-This isn't supported anymore. I left it here so you could see what the data
-looks like. We're using a Websocket connection to Redis instead and I don't have
-a command line version of that connection.
-
-```bash
-
-curl localhost:3000/api/events?topic=userspace.jobs-output -v -H "AUTHORIZATION: Token ${TOKEN}"
-*   Trying ::1...
-* Connected to localhost (::1) port 3000 (#0)
-> GET /api/events?topic=userspace.jobs-output HTTP/1.1
-> Host: localhost:3000
-> User-Agent: curl/7.43.0
-> Accept: */*
-> AUTHORIZATION: Token eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.viPsYU4tiIbiMw8cWG2K_XxvrWxPd3-4.gd1yeetv-_LfhOG5.tcVTc6dTcZMjTja6MrAbSS7rzYtlnJr4ddrG6NggaImemUROMmHjTKwhGybqAaYYbgf42K4vfw.16eGt0IpAW1Y_FleXdBtyg
->
-< HTTP/1.1 200 OK
-< Content-Type: text/event-stream
-< Cache-Control: no-cache
-< Access-Control-Allow-Origin: http://localhost:3449
-< Access-Control-Allow-Headers: Content-Type,AUTHORIZATION
-< Access-Control-Allow-Methods: GET,POST,OPTIONS
-< Access-Control-Allow-Credentials: true
-< Server: Aleph/0.4.0
-< Connection: Keep-Alive
-< Date: Fri, 05 Feb 2016 17:35:23 GMT
-< transfer-encoding: chunked
-<
-data: {:command :userspace.jobs/wat, :job-sym :userspace.jobs/wat, :uuid nil, :output {:a "a hammer"}, :input {:weight-kg 500, :name "hello"}}
-
-```
-
-Post a command and see that it has a kafka offset
-```bash
-curl -X POST --header "Content-Type: application/json" --header "Accept: application/json" --header "AUTHORIZATION: Token ${TOKEN}" -d "{
-  \"message\": {
-    \"weight-kg\": 500,
-    \"name\": \"hello\"
-  }
-  }" "http://localhost:3000/api/command/userspace.jobs..wat"
-
- {"topic":"userspace.jobs..wat-input","partition":0,"offset":1}
-
-```
-
-### Testing CORS (for notes only)
-```
-curl 'http://localhost:3000/login' -X OPTIONS -H 'Access-Control-Request-Method: POST' -H 'Origin: http://localhost:3449' -H 'Accept-Encoding: gzip, deflate, sdch' -H 'Accept-Language: en-US,en;q=0.8' -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36' -H 'Accept: */*' -H 'Referer: http://localhost:3449/' -H 'Connection: keep-alive' -H 'DNT: 1' -H 'Access-Control-Request-Headers: content-type' --compressed -v
-```
-
-### Errors
-
-Hopefully you will be able to see the full lifecycle of a
-request to the `:processed` state. If you do see errors the only answer I
-have right now is to restart the whole repl. Please let me know if you do see errors.
 
 
 
 ## Intended Design
-[![Precursor](https://precursorapp.com/document/Bones-Intended-Architecture-17592202986237.svg?auth-token=)](https://precursorapp.com/document/Bones-Intended-Architecture-17592202986237)
 
 
-
-
-## clojurescript testing
-
-    lein doo phantom test
+![Precursor](https://precursorapp.com/document/Bones-Architecture-17592205334814.svg?auth-token=)
 
 
 ## License
 
-Copyright © 2015 ct
+Copyright © 2015 teaforthecat
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
