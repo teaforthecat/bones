@@ -1,5 +1,5 @@
 # bones
-
+![icon](https://github.com/teaforthecat/bones/blob/master/icon.png)
 A work-in-progress CQRS/Rest frameworky thing.
 
 The goal is to provide an easy way to get started writing clojure apps that will
@@ -60,7 +60,7 @@ another library could come about doing that.
 ## Intended Design
 
 
-![Precursor](https://precursorapp.com/document/Bones-Architecture-17592205334814.svg?auth-token=)
+![Bones Architecture](https://precursorapp.com/document/Bones-Architecture-17592205334814.svg?auth-token=)
 
 
 ## License
