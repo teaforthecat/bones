@@ -42,11 +42,17 @@ _all components combined_
 
 ##### In play:
 
-The design goal is to basically combine these libraries and add a data api on top:
+The design goal is to basically combine these awesome projects.
 
 - [re-frame](https://github.com/Day8/re-frame).
 - [yada](https://github.com/juxt/yada).
 - [Onyx](https://github.com/onyx-platform/onyx).
+
+They share the values of data streaming and data as configuration; data all the
+way down, so to speak. So, you might ask, why not just use them directly? The
+intent of this framework is to provide sensible and helpful defaults, minimize
+the required configuration, and ensure those projects work well together.
+Hopefully, providing enough benefit, while also getting out of the way.
 
 
 ##### Influenced by:
