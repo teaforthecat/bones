@@ -1,4 +1,4 @@
-# ![icon](https://github.com/teaforthecat/bones/blob/master/icon.svg)
+# ![icon](https://cdn.rawgit.com/teaforthecat/bones/master/icon.svg)
 
 
 A work-in-progress CQRS/Rest frameworky thing.
