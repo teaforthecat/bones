@@ -21,10 +21,11 @@ now, they assist with the plumbing of building an app.
 
 ##### These are the components:
 
-- [bones.http](https://github.com/teaforthecat/bones-http)
-- [bones.client](https://github.com/teaforthecat/bones-client)
-- [bones.editable](https://github.com/teaforthecat/bones-editable)
-- [bones.conf](https://github.com/teaforthecat/bones-conf)
+- [bones.http](https://github.com/teaforthecat/bones-http) CQRS WebServer
+- [bones.client](https://github.com/teaforthecat/bones-client) CLJS Client to bones.http
+- [bones.editable](https://github.com/teaforthecat/bones-editable) Re-Frame form system, intefaces with bones.client
+- [bones.stream](https://github.com/teaforthecat/bones-stream) Simple Onyx Pipeline, backend to bones.http
+- [bones.conf](https://github.com/teaforthecat/bones-conf) Merges configuration files, binds above components
 
 ##### Examples:
 
