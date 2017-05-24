@@ -68,13 +68,6 @@ Hopefully, providing enough benefit, while also getting out of the way.
 - [Untangled](http://untangled-web.github.io/untangled/)
 
 
-##### Yet to be built:
-
-There does exist a tiny library called `bones.jobs` but I'd like to expand that
-to support the combination of Onyx and the `bones.http` library. (see diagram below)
-
-- [bones.stream](#) (Onyx Wrapper)
-
 The plan is for this frameworky thing to embrace systems by offering support
 for Kafka and Redis; two integral parts of of this web app architecture. It
 would make sense to help with the provisioning of these systems, so maybe
