@@ -37,8 +37,10 @@ _front-end only_
 - [app using kafka as db](https://github.com/teaforthecat/weather-report) 
 _all components combined_
 
+  [Demo Video (no audio, sorry)](https://www.youtube.com/watch?v=dGQRDSRACB4)
   Be sure to check this app out, it has been the target app that these libraries
   have been built around. It mostly resembles what an app would look like.
+  
 
 
 ##### In play:
@@ -61,8 +63,9 @@ Hopefully, providing enough benefit, while also getting out of the way.
 - [From REST to CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA)
 - [Designing with Data](https://www.youtube.com/watch?v=kP8wImz-x4w)
 - [Everything Will Flow](https://www.youtube.com/watch?v=1bNOO3xxMc0)
+- [Inside Onyx](https://www.youtube.com/watch?v=KVByn_kp2fQ)
 
-##### Aspiring to be:
+##### Aspiring to be like:
 
 - [Hoplon](http://hoplon.io/)
 - [Untangled](http://untangled-web.github.io/untangled/)
