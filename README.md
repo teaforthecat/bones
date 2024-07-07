@@ -82,7 +82,7 @@ another library could come about doing that.
 ## Architecture
 
 
-![Bones Architecture](https://precursorapp.com/document/Bones-Architecture-17592205334814.svg?auth-token=)
+![Bones Architecture](https://github.com/teaforthecat/bones/blob/e37d984b7b04a54c52603fb3ef9aa05a3c467fc8/Bones%20Architecture%20-%20Reactive%20Stack.png)
 
 
 ## License
